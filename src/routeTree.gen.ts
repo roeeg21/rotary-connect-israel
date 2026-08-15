@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NetworkRouteImport } from './routes/network'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
@@ -37,6 +38,11 @@ const NetworkRoute = NetworkRouteImport.update({
   path: '/network',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SavedRoute = SavedRouteImport.update({
   id: '/saved',
   path: '/saved',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
+  '/register': typeof RegisterRoute
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
+  '/register': typeof RegisterRoute
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
+  '/register': typeof RegisterRoute
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -84,16 +93,31 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/me' | '/network' | '/saved' | '/search' | '/profile/$id'
+    | '/'
+    | '/login'
+    | '/me'
+    | '/network'
+    | '/register'
+    | '/saved'
+    | '/search'
+    | '/profile/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/login' | '/me' | '/network' | '/saved' | '/search' | '/profile/$id'
+    | '/'
+    | '/login'
+    | '/me'
+    | '/network'
+    | '/register'
+    | '/saved'
+    | '/search'
+    | '/profile/$id'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/me'
     | '/network'
+    | '/register'
     | '/saved'
     | '/search'
     | '/profile/$id'
@@ -104,6 +128,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
   NetworkRoute: typeof NetworkRoute
+  RegisterRoute: typeof RegisterRoute
   SavedRoute: typeof SavedRoute
   SearchRoute: typeof SearchRoute
   ProfileIdRoute: typeof ProfileIdRoute
@@ -139,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NetworkRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/saved': {
       id: '/saved'
       path: '/saved'
@@ -168,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MeRoute: MeRoute,
   NetworkRoute: NetworkRoute,
+  RegisterRoute: RegisterRoute,
   SavedRoute: SavedRoute,
   SearchRoute: SearchRoute,
   ProfileIdRoute: ProfileIdRoute,
