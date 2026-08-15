@@ -1,12 +1,12 @@
 import { members, type Member } from "@/data/members";
 
 export type Facets = {
-  company?: string;
-  profession?: string;
-  industry?: string;
-  city?: string;
-  club?: string;
-  accountType?: "member" | "family";
+  company?: string | undefined;
+  profession?: string | undefined;
+  industry?: string | undefined;
+  city?: string | undefined;
+  club?: string | undefined;
+  accountType?: "member" | "family" | undefined;
 };
 
 export type Hit = { member: Member; score: number; reasons: string[] };
