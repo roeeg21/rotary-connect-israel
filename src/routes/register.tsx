@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -7,6 +8,8 @@ import { Logo } from "@/components/brand/RotaryMark";
 import { clubs } from "@/data/clubs";
 import { useAppState } from "@/lib/app-state";
 import { useI18n } from "@/lib/i18n";
+import { saveUserRegistration } from "@/lib/users.functions";
+import type { Child, Job, Person } from "@/lib/user-registration";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -28,17 +31,6 @@ export const Route = createFileRoute("/register")({
 
 const CHILD_MIN_AGE = 28;
 const MAX_AGE = 130;
-
-type Job = { employer: string; role: string; from: string; to: string; description: string };
-type Person = {
-  gender: string;
-  age: string;
-  education: string;
-  jobs: Job[];
-  boards: string;
-  hobbies: string;
-};
-type Child = { name: string; dob: string; status: string };
 
 const emptyJob = (): Job => ({ employer: "", role: "", from: "", to: "", description: "" });
 const emptyPerson = (): Person => ({
@@ -201,7 +193,9 @@ function RegisterPage() {
   const navigate = useNavigate();
   const { signIn } = useAppState();
   const { lang, dir } = useI18n();
+  const saveUserRegistrationFn = useServerFn(saveUserRegistration);
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const he = lang === "he";
   const tr = (heText: string, enText: string) => (he ? heText : enText);
 
@@ -268,16 +262,54 @@ function RegisterPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function finish() {
-    signIn({
-      firstName,
-      lastName,
-      email,
-      club: club || customClub,
-      onboarded: true,
-    });
-    toast.success(tr("ברוכים הבאים לרשת", "Welcome to the network"));
-    void navigate({ to: "/" });
+  async function finish() {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await saveUserRegistrationFn({
+        data: {
+          firstName,
+          lastName,
+          email,
+          dob,
+          clubId: club,
+          customClub,
+          joinYear,
+          socialProfiles: {
+            facebook,
+            instagram,
+            linkedin,
+          },
+          me,
+          married,
+          spouse: married === "yes" ? spouse : null,
+          children,
+          onboarded: true,
+        },
+      });
+
+      signIn({
+        firstName,
+        lastName,
+        email,
+        club: club || customClub,
+        onboarded: true,
+      });
+      toast.success(tr("ברוכים הבאים לרשת", "Welcome to the network"));
+      await navigate({ to: "/" });
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        tr(
+          "שמירת ההרשמה נכשלה. בדקו את חיבור מסד הנתונים ונסו שוב.",
+          "We couldn't save your registration. Please check the database connection and try again.",
+        ),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const steps = [
@@ -698,7 +730,7 @@ function RegisterPage() {
       <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-5">
         <button
           type="button"
-          disabled={step === 1}
+          disabled={step === 1 || isSubmitting}
           onClick={() => setStep((s) => Math.max(1, s - 1))}
           className="hover:bg-secondary rounded-md border border-border px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
         >
@@ -707,18 +739,20 @@ function RegisterPage() {
         {step < 4 ? (
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={next}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold disabled:opacity-60"
           >
             {tr("המשך", "Continue")}
           </button>
         ) : (
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={finish}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold disabled:opacity-60"
           >
-            {tr("סיום", "Finish")}
+            {isSubmitting ? tr("שומר...", "Saving...") : tr("סיום", "Finish")}
           </button>
         )}
       </div>
