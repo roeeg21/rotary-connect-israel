@@ -85,7 +85,7 @@ const dict: Dict = {
   registerNow: { he: "להרשמה", en: "Register now" },
   later: { he: "לא עכשיו", en: "Not now" },
   footerGovernor: {
-    he: "מנחם גץ, מושל המחוז, רוטרי ישראל, 2027-2028",
+    he: "מנחם גץ, נגיד המחוז, רוטרי ישראל, 2027-2028",
     en: "Menachem Getz, District Governor, Rotary Israel, 2027-2028",
   },
   footerDistrict: { he: "רוטרי ישראל · מחוז 2490", en: "Rotary Israel · District 2490" },

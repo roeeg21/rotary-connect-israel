@@ -6,17 +6,17 @@ import { toast } from "sonner";
 import { Logo } from "@/components/brand/RotaryMark";
 import { clubs } from "@/data/clubs";
 import { useAppState } from "@/lib/app-state";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/register")({
   head: () => ({
     meta: [
-      { title: "Register — Rotary Connect Israel" },
+      { title: "שאלון הרשמה — Rotary Connect Israel" },
       {
         name: "description",
-        content:
-          "Join Rotary Connect Israel: personal details, employment history, spouse and family information.",
+        content: "שאלון ההרשמה של רוטרי קונקט ישראל: פרטים אישיים, תעסוקה, בן או בת זוג ומשפחה.",
       },
-      { property: "og:title", content: "Register — Rotary Connect Israel" },
+      { property: "og:title", content: "Registration Questionnaire — Rotary Connect Israel" },
       {
         property: "og:description",
         content: "Create your Rotary Connect Israel profile in four short steps.",
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/register")({
 });
 
 const CHILD_MIN_AGE = 28;
+const MAX_AGE = 130;
 
 type Job = { employer: string; role: string; from: string; to: string; description: string };
 type Person = {
@@ -37,7 +38,7 @@ type Person = {
   boards: string;
   hobbies: string;
 };
-type Child = { age: string; status: string };
+type Child = { name: string; dob: string; status: string };
 
 const emptyJob = (): Job => ({ employer: "", role: "", from: "", to: "", description: "" });
 const emptyPerson = (): Person => ({
@@ -48,6 +49,34 @@ const emptyPerson = (): Person => ({
   boards: "",
   hobbies: "",
 });
+const emptyChild = (): Child => ({ name: "", dob: "", status: "" });
+
+function calculateAge(dateString: string) {
+  if (!dateString) return null;
+
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const birthDate = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(birthDate.getTime()) ||
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const monthDiff = today.getMonth() - (month - 1);
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < day)) {
+    age--;
+  }
+
+  return age >= 0 && age < MAX_AGE ? age : null;
+}
 
 function Field({
   label,
@@ -70,7 +99,26 @@ function Field({
 const inputCls =
   "bg-card focus:border-primary h-11 w-full rounded-md border border-border px-3 text-sm outline-none";
 
-function JobsEditor({ jobs, onChange }: { jobs: Job[]; onChange: (jobs: Job[]) => void }) {
+type JobsEditorLabels = {
+  position: string;
+  removePosition: string;
+  employer: string;
+  role: string;
+  fromDate: string;
+  toDate: string;
+  jobDescription: string;
+  addPosition: string;
+};
+
+function JobsEditor({
+  jobs,
+  onChange,
+  labels,
+}: {
+  jobs: Job[];
+  onChange: (jobs: Job[]) => void;
+  labels: JobsEditorLabels;
+}) {
   const set = (i: number, patch: Partial<Job>) =>
     onChange(jobs.map((j, idx) => (idx === i ? { ...j, ...patch } : j)));
 
@@ -79,34 +127,36 @@ function JobsEditor({ jobs, onChange }: { jobs: Job[]; onChange: (jobs: Job[]) =
       {jobs.map((job, i) => (
         <div key={i} className="bg-surface rounded-lg border border-border p-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold">Position {i + 1}</p>
+            <p className="text-xs font-semibold">
+              {labels.position} {i + 1}
+            </p>
             {jobs.length > 1 && (
               <button
                 type="button"
                 onClick={() => onChange(jobs.filter((_, idx) => idx !== i))}
                 className="text-muted-foreground hover:text-destructive"
-                aria-label="Remove position"
+                aria-label={labels.removePosition}
               >
                 <Trash2 className="size-4" />
               </button>
             )}
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field label="Employer">
+            <Field label={labels.employer}>
               <input
                 className={inputCls}
                 value={job.employer}
                 onChange={(e) => set(i, { employer: e.target.value })}
               />
             </Field>
-            <Field label="Role / job title">
+            <Field label={labels.role}>
               <input
                 className={inputCls}
                 value={job.role}
                 onChange={(e) => set(i, { role: e.target.value })}
               />
             </Field>
-            <Field label="From date">
+            <Field label={labels.fromDate}>
               <input
                 type="month"
                 className={inputCls}
@@ -114,7 +164,7 @@ function JobsEditor({ jobs, onChange }: { jobs: Job[]; onChange: (jobs: Job[]) =
                 onChange={(e) => set(i, { from: e.target.value })}
               />
             </Field>
-            <Field label="To date">
+            <Field label={labels.toDate}>
               <input
                 type="month"
                 className={inputCls}
@@ -124,7 +174,7 @@ function JobsEditor({ jobs, onChange }: { jobs: Job[]; onChange: (jobs: Job[]) =
             </Field>
           </div>
           <div className="mt-3">
-            <Field label="Job description">
+            <Field label={labels.jobDescription}>
               <textarea
                 rows={3}
                 className="bg-card focus:border-primary w-full rounded-md border border-border p-3 text-sm outline-none"
@@ -141,7 +191,7 @@ function JobsEditor({ jobs, onChange }: { jobs: Job[]; onChange: (jobs: Job[]) =
         className="hover:bg-secondary inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold"
       >
         <Plus className="size-4" aria-hidden />
-        Add position
+        {labels.addPosition}
       </button>
     </div>
   );
@@ -150,7 +200,10 @@ function JobsEditor({ jobs, onChange }: { jobs: Job[]; onChange: (jobs: Job[]) =
 function RegisterPage() {
   const navigate = useNavigate();
   const { signIn } = useAppState();
+  const { lang, dir } = useI18n();
   const [step, setStep] = useState(1);
+  const he = lang === "he";
+  const tr = (heText: string, enText: string) => (he ? heText : enText);
 
   // Step 1
   const [firstName, setFirstName] = useState("");
@@ -160,6 +213,9 @@ function RegisterPage() {
   const [club, setClub] = useState("");
   const [customClub, setCustomClub] = useState("");
   const [joinYear, setJoinYear] = useState("");
+  const [facebook, setFacebook] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [linkedin, setLinkedin] = useState("");
 
   // Step 2
   const [me, setMe] = useState<Person>(emptyPerson());
@@ -170,20 +226,8 @@ function RegisterPage() {
 
   // Step 4
   const [children, setChildren] = useState<Child[]>([]);
-  const [facebook, setFacebook] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [linkedin, setLinkedin] = useState("");
 
-  const age = useMemo(() => {
-    if (!dob) return null;
-    const d = new Date(dob);
-    if (Number.isNaN(d.getTime())) return null;
-    const now = new Date();
-    let a = now.getFullYear() - d.getFullYear();
-    const m = now.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
-    return a >= 0 && a < 130 ? a : null;
-  }, [dob]);
+  const age = useMemo(() => calculateAge(dob), [dob]);
 
   const years = useMemo(() => {
     const y = new Date().getFullYear();
@@ -194,27 +238,30 @@ function RegisterPage() {
     setChildren((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
   }
 
-  function onChildAge(i: number, value: string) {
-    const n = Number(value);
-    if (value && !Number.isNaN(n) && n < CHILD_MIN_AGE) {
+  function onChildDob(i: number, value: string) {
+    const childAge = calculateAge(value);
+    if (childAge !== null && childAge < CHILD_MIN_AGE) {
       toast.error(
-        `For privacy and safeguarding reasons, details of children under ${CHILD_MIN_AGE} cannot be entered.`,
+        tr(
+          `מטעמי פרטיות והגנה, לא ניתן להזין פרטים לגבי ילדים מתחת לגיל ${CHILD_MIN_AGE}.`,
+          `For privacy and safeguarding reasons, details of children under ${CHILD_MIN_AGE} cannot be entered.`,
+        ),
       );
-      setChild(i, { age: value, status: "" });
+      setChild(i, { dob: value, status: "" });
       return;
     }
-    setChild(i, { age: value });
+    setChild(i, { dob: value });
   }
 
   function next() {
     if (step === 1) {
       if (!firstName || !lastName || !email || !dob || (!club && !customClub) || !joinYear) {
-        toast.error("Please complete all personal details.");
+        toast.error(tr("נא להשלים את כל הפרטים האישיים.", "Please complete all personal details."));
         return;
       }
     }
     if (step === 3 && married === "") {
-      toast.error("Please indicate whether you are married.");
+      toast.error(tr("נא לציין אם יש בן או בת זוג.", "Please indicate whether you are married."));
       return;
     }
     setStep((s) => Math.min(4, s + 1));
@@ -229,23 +276,46 @@ function RegisterPage() {
       club: club || customClub,
       onboarded: true,
     });
-    toast.success("Welcome to the network");
+    toast.success(tr("ברוכים הבאים לרשת", "Welcome to the network"));
     void navigate({ to: "/" });
   }
 
-  const steps = ["Personal", "Employment", "Spouse", "Family"];
+  const steps = [
+    tr("אישי", "Personal"),
+    tr("תעסוקה", "Employment"),
+    tr("בן או בת זוג", "Spouse"),
+    tr("משפחה", "Family"),
+  ];
+  const jobLabels = {
+    position: tr("משרה", "Position"),
+    removePosition: tr("הסרת משרה", "Remove position"),
+    employer: tr("מעסיק", "Employer"),
+    role: tr("תפקיד / שם המשרה", "Role / job title"),
+    fromDate: tr("מתאריך", "From date"),
+    toDate: tr("עד תאריך", "To date"),
+    jobDescription: tr("תיאור התפקיד", "Job description"),
+    addPosition: tr("הוספת משרה", "Add position"),
+  };
 
   return (
-    <div className="container-app max-w-2xl py-8 sm:py-12" dir="ltr">
+    <div className="container-app max-w-2xl py-8 sm:py-12" dir={dir}>
       <div className="flex justify-center">
         <Logo size="lg" />
       </div>
-      <h1 className="mt-6 text-center font-heading text-2xl font-bold">Create your profile</h1>
+      <h1 className="mt-6 text-center font-heading text-2xl font-bold">
+        {tr("יצירת הפרופיל שלך", "Create your profile")}
+      </h1>
       <p className="text-muted-foreground mt-1 text-center text-sm">
-        Four short steps · about 3 minutes
+        {tr("ארבעה שלבים קצרים · בערך 3 דקות", "Four short steps · about 3 minutes")}
+      </p>
+      <p className="text-muted-foreground mt-2 text-center text-xs">
+        {tr(
+          "אפשר לעבור לאנגלית בכל רגע דרך מתג השפה בראש העמוד.",
+          "You can switch to Hebrew or English anytime from the language toggle in the header.",
+        )}
       </p>
 
-      <ol className="mt-6 grid grid-cols-4 gap-2" aria-label="Progress">
+      <ol className="mt-6 grid grid-cols-4 gap-2" aria-label={tr("התקדמות", "Progress")}>
         {steps.map((label, i) => (
           <li key={label}>
             <div
@@ -267,21 +337,21 @@ function RegisterPage() {
         {step === 1 && (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="First name">
+              <Field label={tr("שם פרטי", "First name")}>
                 <input
                   className={inputCls}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                 />
               </Field>
-              <Field label="Last name">
+              <Field label={tr("שם משפחה", "Last name")}>
                 <input
                   className={inputCls}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
               </Field>
-              <Field label="Email">
+              <Field label={tr('דוא"ל', "Email")}>
                 <input
                   type="email"
                   className={inputCls}
@@ -290,8 +360,8 @@ function RegisterPage() {
                 />
               </Field>
               <Field
-                label="Date of birth"
-                {...(age !== null ? { hint: `Current age: ${age}` } : {})}
+                label={tr("תאריך לידה", "Date of birth")}
+                {...(age !== null ? { hint: tr(`גיל נוכחי: ${age}`, `Current age: ${age}`) } : {})}
               >
                 <input
                   type="date"
@@ -300,27 +370,23 @@ function RegisterPage() {
                   onChange={(e) => setDob(e.target.value)}
                 />
               </Field>
-              <Field label="Rotary club name">
-                <select
-                  className={inputCls}
-                  value={club}
-                  onChange={(e) => setClub(e.target.value)}
-                >
-                  <option value="">Select your club</option>
+              <Field label={tr("שם מועדון הרוטרי", "Rotary club name")}>
+                <select className={inputCls} value={club} onChange={(e) => setClub(e.target.value)}>
+                  <option value="">{tr("בחרו את המועדון שלכם", "Select your club")}</option>
                   {clubs.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.en} — {c.he}
+                      {c[lang]}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Year you joined Rotary">
+              <Field label={tr("שנת ההצטרפות לרוטרי", "Year you joined Rotary")}>
                 <select
                   className={inputCls}
                   value={joinYear}
                   onChange={(e) => setJoinYear(e.target.value)}
                 >
-                  <option value="">Select year</option>
+                  <option value="">{tr("בחרו שנה", "Select year")}</option>
                   {years.map((y) => (
                     <option key={y} value={y}>
                       {y}
@@ -330,34 +396,78 @@ function RegisterPage() {
               </Field>
             </div>
             <Field
-              label="Club not listed? Add your club name"
-              hint="Your club will be reviewed by the district administrator."
+              label={tr("המועדון לא מופיע? הוסיפו את שמו", "Club not listed? Add your club name")}
+              hint={tr(
+                "פרטי המועדון ייבדקו על ידי הנהלת המחוז.",
+                "Your club will be reviewed by the district administrator.",
+              )}
             >
               <input
                 className={inputCls}
                 value={customClub}
                 onChange={(e) => setCustomClub(e.target.value)}
-                placeholder="e.g. Rotary Kfar Vradim"
+                placeholder={tr("לדוגמה: רוטרי כפר ורדים", "e.g. Rotary Kfar Vradim")}
               />
             </Field>
+            <h2 className="font-heading text-base font-bold">
+              {tr("פרטי רשתות חברתיות", "Social profiles")}
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Facebook">
+                <input
+                  className={inputCls}
+                  value={facebook}
+                  onChange={(e) => setFacebook(e.target.value)}
+                  placeholder={tr("שם משתמש", "username")}
+                />
+              </Field>
+              <Field label="Instagram">
+                <input
+                  className={inputCls}
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                  placeholder={tr("שם משתמש", "username")}
+                />
+              </Field>
+              <Field label="LinkedIn">
+                <input
+                  className={inputCls}
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  placeholder={tr("שם משתמש", "username")}
+                />
+              </Field>
+            </div>
           </>
         )}
 
         {step === 2 && (
           <>
             <h2 className="font-heading text-base font-bold">
-              Your employment history (last 5 years)
+              {tr(
+                "היסטוריית התעסוקה שלך (5 השנים האחרונות)",
+                "Your employment history (last 5 years)",
+              )}
             </h2>
-            <JobsEditor jobs={me.jobs} onChange={(jobs) => setMe({ ...me, jobs })} />
-            <Field label="Education">
+            <JobsEditor
+              jobs={me.jobs}
+              onChange={(jobs) => setMe({ ...me, jobs })}
+              labels={jobLabels}
+            />
+            <Field label={tr("השכלה", "Education")}>
               <input
                 className={inputCls}
                 value={me.education}
                 onChange={(e) => setMe({ ...me, education: e.target.value })}
-                placeholder="Degree, institution, year"
+                placeholder={tr("תואר, מוסד לימודים, שנה", "Degree, institution, year")}
               />
             </Field>
-            <Field label="Boards, associations or social activity">
+            <Field
+              label={tr(
+                "דירקטוריונים, עמותות או פעילות חברתית",
+                "Boards, associations or social activity",
+              )}
+            >
               <textarea
                 rows={3}
                 className="bg-card focus:border-primary w-full rounded-md border border-border p-3 text-sm outline-none"
@@ -365,7 +475,7 @@ function RegisterPage() {
                 onChange={(e) => setMe({ ...me, boards: e.target.value })}
               />
             </Field>
-            <Field label="Hobbies">
+            <Field label={tr("תחביבים", "Hobbies")}>
               <input
                 className={inputCls}
                 value={me.hobbies}
@@ -377,20 +487,22 @@ function RegisterPage() {
 
         {step === 3 && (
           <>
-            <Field label="Are you married / with a partner?">
+            <Field label={tr("האם יש לך בן או בת זוג?", "Are you married / with a partner?")}>
               <div className="flex gap-2">
                 {(["yes", "no"] as const).map((v) => (
                   <button
                     key={v}
                     type="button"
                     onClick={() => setMarried(v)}
-                    className={`h-11 flex-1 rounded-md border text-sm font-semibold capitalize ${
+                    className={`h-11 flex-1 rounded-md border text-sm font-semibold ${
+                      lang === "en" ? "capitalize " : ""
+                    }${
                       married === v
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border"
                     }`}
                   >
-                    {v}
+                    {v === "yes" ? tr("כן", "yes") : tr("לא", "no")}
                   </button>
                 ))}
               </div>
@@ -399,19 +511,21 @@ function RegisterPage() {
             {married === "yes" && (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Gender">
+                  <Field label={tr("מגדר", "Gender")}>
                     <select
                       className={inputCls}
                       value={spouse.gender}
                       onChange={(e) => setSpouse({ ...spouse, gender: e.target.value })}
                     >
-                      <option value="">Select</option>
-                      <option value="female">Female</option>
-                      <option value="male">Male</option>
-                      <option value="other">Other / prefer not to say</option>
+                      <option value="">{tr("בחרו", "Select")}</option>
+                      <option value="female">{tr("אישה", "Female")}</option>
+                      <option value="male">{tr("גבר", "Male")}</option>
+                      <option value="other">
+                        {tr("אחר / מעדיפ/ה לא לציין", "Other / prefer not to say")}
+                      </option>
                     </select>
                   </Field>
-                  <Field label="Age">
+                  <Field label={tr("גיל", "Age")}>
                     <input
                       type="number"
                       min={18}
@@ -422,20 +536,29 @@ function RegisterPage() {
                   </Field>
                 </div>
                 <h2 className="font-heading text-base font-bold">
-                  Partner employment history (last 5 years)
+                  {tr(
+                    "היסטוריית התעסוקה של בן/בת הזוג (5 השנים האחרונות)",
+                    "Partner employment history (last 5 years)",
+                  )}
                 </h2>
                 <JobsEditor
                   jobs={spouse.jobs}
                   onChange={(jobs) => setSpouse({ ...spouse, jobs })}
+                  labels={jobLabels}
                 />
-                <Field label="Education">
+                <Field label={tr("השכלה", "Education")}>
                   <input
                     className={inputCls}
                     value={spouse.education}
                     onChange={(e) => setSpouse({ ...spouse, education: e.target.value })}
                   />
                 </Field>
-                <Field label="Boards, associations or social activity">
+                <Field
+                  label={tr(
+                    "דירקטוריונים, עמותות או פעילות חברתית",
+                    "Boards, associations or social activity",
+                  )}
+                >
                   <textarea
                     rows={3}
                     className="bg-card focus:border-primary w-full rounded-md border border-border p-3 text-sm outline-none"
@@ -443,7 +566,7 @@ function RegisterPage() {
                     onChange={(e) => setSpouse({ ...spouse, boards: e.target.value })}
                   />
                 </Field>
-                <Field label="Hobbies">
+                <Field label={tr("תחביבים", "Hobbies")}>
                   <input
                     className={inputCls}
                     value={spouse.hobbies}
@@ -457,7 +580,18 @@ function RegisterPage() {
 
         {step === 4 && (
           <>
-            <Field label="Number of children">
+            <div>
+              <h2 className="font-heading text-base font-bold">
+                {tr("שאלון ילדים", "Children questionnaire")}
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {tr(
+                  "הוסיפו את שם הילד או הילדה ואת תאריך הלידה. הגיל יחושב אוטומטית.",
+                  "Add each child's name and date of birth. Age is calculated automatically.",
+                )}
+              </p>
+            </div>
+            <Field label={tr("מספר הילדים", "Number of children")}>
               <select
                 className={inputCls}
                 value={String(children.length)}
@@ -465,7 +599,7 @@ function RegisterPage() {
                   setChildren(
                     Array.from(
                       { length: Number(e.target.value) },
-                      (_, i) => children[i] ?? { age: "", status: "" },
+                      (_, i) => children[i] ?? emptyChild(),
                     ),
                   )
                 }
@@ -479,67 +613,84 @@ function RegisterPage() {
             </Field>
 
             {children.map((child, i) => {
-              const blocked = child.age !== "" && Number(child.age) < CHILD_MIN_AGE;
+              const childAge = calculateAge(child.dob);
+              const blocked = childAge !== null && childAge < CHILD_MIN_AGE;
+              const canShareChildDetails = childAge !== null && childAge >= CHILD_MIN_AGE;
               return (
                 <div key={i} className="bg-surface rounded-lg border border-border p-4">
-                  <p className="text-xs font-semibold">Child {i + 1}</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <Field label="Age">
+                  <p className="text-xs font-semibold">
+                    {tr("ילד/ה", "Child")} {i + 1}
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Field label={tr("שם", "Name")}>
                       <input
-                        type="number"
-                        min={0}
                         className={inputCls}
-                        value={child.age}
-                        onChange={(e) => onChildAge(i, e.target.value)}
+                        value={child.name}
+                        onChange={(e) => setChild(i, { name: e.target.value })}
+                        placeholder={tr("שם מלא", "Full name")}
                       />
                     </Field>
-                    <Field label="Current situation (studies / work)">
+                    <Field
+                      label={tr("תאריך לידה", "Date of birth")}
+                      hint={
+                        childAge !== null
+                          ? tr(`גיל נוכחי: ${childAge}`, `Current age: ${childAge}`)
+                          : undefined
+                      }
+                    >
+                      <input
+                        type="date"
+                        className={inputCls}
+                        value={child.dob}
+                        onChange={(e) => onChildDob(i, e.target.value)}
+                      />
+                    </Field>
+                    <Field label={tr("גיל", "Age")}>
+                      <input
+                        readOnly
+                        className={inputCls}
+                        value={childAge ?? ""}
+                        placeholder={tr("מחושב אוטומטית", "Calculated automatically")}
+                      />
+                    </Field>
+                  </div>
+                  <div className="mt-3 grid gap-3">
+                    <Field
+                      label={tr(
+                        "עיסוק נוכחי (לימודים / עבודה)",
+                        "Current situation (studies / work)",
+                      )}
+                    >
                       <input
                         className={inputCls}
-                        disabled={blocked}
+                        disabled={!canShareChildDetails}
                         value={child.status}
                         onChange={(e) => setChild(i, { status: e.target.value })}
-                        placeholder="e.g. Software engineer at Intel / BA at Tel Aviv University"
+                        placeholder={
+                          canShareChildDetails
+                            ? tr(
+                                "לדוגמה: מהנדס/ת תוכנה באינטל / תואר ראשון באוניברסיטת תל אביב",
+                                "e.g. Software engineer at Intel / BA at Tel Aviv University",
+                              )
+                            : tr(
+                                "הזינו תאריך לידה של ילד/ה בוגר/ת כדי לפתוח את השדה",
+                                "Enter date of birth for an adult child to unlock this field",
+                              )
+                        }
                       />
                     </Field>
                   </div>
                   {blocked && (
                     <p className="text-destructive mt-2 text-xs font-medium">
-                      For privacy and safeguarding reasons, details of children under{" "}
-                      {CHILD_MIN_AGE} cannot be entered.
+                      {tr(
+                        `מטעמי פרטיות והגנה, לא ניתן להזין פרטים לגבי ילדים מתחת לגיל ${CHILD_MIN_AGE}.`,
+                        `For privacy and safeguarding reasons, details of children under ${CHILD_MIN_AGE} cannot be entered.`,
+                      )}
                     </p>
                   )}
                 </div>
               );
             })}
-
-            <h2 className="font-heading text-base font-bold">Social profiles</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Facebook">
-                <input
-                  className={inputCls}
-                  value={facebook}
-                  onChange={(e) => setFacebook(e.target.value)}
-                  placeholder="username"
-                />
-              </Field>
-              <Field label="Instagram">
-                <input
-                  className={inputCls}
-                  value={instagram}
-                  onChange={(e) => setInstagram(e.target.value)}
-                  placeholder="username"
-                />
-              </Field>
-              <Field label="LinkedIn">
-                <input
-                  className={inputCls}
-                  value={linkedin}
-                  onChange={(e) => setLinkedin(e.target.value)}
-                  placeholder="username"
-                />
-              </Field>
-            </div>
           </>
         )}
       </div>
@@ -551,7 +702,7 @@ function RegisterPage() {
           onClick={() => setStep((s) => Math.max(1, s - 1))}
           className="hover:bg-secondary rounded-md border border-border px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
         >
-          Back
+          {tr("חזרה", "Back")}
         </button>
         {step < 4 ? (
           <button
@@ -559,7 +710,7 @@ function RegisterPage() {
             onClick={next}
             className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold"
           >
-            Continue
+            {tr("המשך", "Continue")}
           </button>
         ) : (
           <button
@@ -567,7 +718,7 @@ function RegisterPage() {
             onClick={finish}
             className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold"
           >
-            Finish
+            {tr("סיום", "Finish")}
           </button>
         )}
       </div>
