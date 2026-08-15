@@ -19,9 +19,9 @@ export function PersonAvatar({
   className,
 }: {
   name: string;
-  photo?: string;
+  photo?: string | undefined;
   size?: "sm" | "md" | "lg" | "xl";
-  className?: string;
+  className?: string | undefined;
 }) {
   const dims = {
     sm: "size-9 text-xs",
