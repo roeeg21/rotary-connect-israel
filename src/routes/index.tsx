@@ -80,9 +80,7 @@ function Home() {
               <RotaryWheel className="text-gold mt-0.5 h-8 w-8 shrink-0" />
               <div>
                 <p className="font-heading text-base font-bold">
-                  {lang === "he"
-                    ? "הצטרפו לרשת של רוטרי ישראל"
-                    : "Join the Rotary Israel network"}
+                  {lang === "he" ? "הצטרפו לרשת של רוטרי ישראל" : "Join the Rotary Israel network"}
                 </p>
                 <p className="mt-1 text-sm opacity-85">{t("guestOneSearch")}</p>
               </div>
@@ -147,11 +145,18 @@ function Home() {
           <Sparkles className="size-3.5" aria-hidden />
           {t("newToNetwork")}
         </h2>
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-          {suggested.map((m) => (
-            <MemberCard key={m.id} member={m} />
-          ))}
-        </div>
+        {suggested.length > 0 ? (
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {suggested.map((m) => (
+              <MemberCard key={m.id} member={m} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 rounded-lg border border-dashed border-border px-4 py-6 text-sm">
+            <p className="font-medium">{t("networkEmpty")}</p>
+            <p className="text-muted-foreground mt-1">{t("networkEmptyHint")}</p>
+          </div>
+        )}
       </section>
     </div>
   );

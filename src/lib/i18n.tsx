@@ -72,6 +72,11 @@ const dict: Dict = {
     he: "נסו מונח רחב יותר, שם חברה או תחום מומחיות.",
     en: "Try a broader term, a company name or an area of expertise.",
   },
+  networkEmpty: { he: "עדיין אין חברים ברשת", en: "There are no members in the network yet" },
+  networkEmptyHint: {
+    he: "פרופילים יופיעו כאן אחרי שחברי רוטרי יירשמו ויאושרו.",
+    en: "Profiles will appear here after Rotary members register and are approved.",
+  },
   startSearching: { he: "התחילו בחיפוש", en: "Start searching" },
   guestLimitTitle: { he: "החיפוש החינמי נוצל", en: "Free search used" },
   guestLimitBody: {
@@ -85,8 +90,8 @@ const dict: Dict = {
   registerNow: { he: "להרשמה", en: "Register now" },
   later: { he: "לא עכשיו", en: "Not now" },
   footerGovernor: {
-    he: "מנחם גץ, נגיד המחוז, רוטרי ישראל, 2027-2028",
-    en: "Menachem Getz, District Governor, Rotary Israel, 2027-2028",
+    he: "מנחם גץ, נגיד רוטרי ישראל, 2027-2028",
+    en: "Menachem Getz, District 2490 Governor, Israel, 2027-2028",
   },
   footerDistrict: { he: "רוטרי ישראל · מחוז 2490", en: "Rotary Israel · District 2490" },
   language: { he: "שפה", en: "Language" },

@@ -69,15 +69,25 @@ function NetworkPage() {
   const expertise = countBy((m) => m.expertise).slice(0, 12);
   const professions = countBy((m) => [m.profession]);
   const locations = countBy((m) => [m.city]);
+  const hasMembers = members.length > 0;
 
   return (
     <div className="container-app max-w-3xl py-8 sm:py-12">
       <h1 className="font-heading text-2xl font-bold">{t("exploreTitle")}</h1>
       <p className="text-muted-foreground mt-1 text-sm">{t("guestOneSearch")}</p>
-      <Group title={t("industries")} items={industries} />
-      <Group title={t("expertise")} items={expertise} />
-      <Group title={t("professions")} items={professions} />
-      <Group title={t("locations")} items={locations} />
+      {hasMembers ? (
+        <>
+          <Group title={t("industries")} items={industries} />
+          <Group title={t("expertise")} items={expertise} />
+          <Group title={t("professions")} items={professions} />
+          <Group title={t("locations")} items={locations} />
+        </>
+      ) : (
+        <div className="mt-6 rounded-lg border border-dashed border-border px-4 py-6 text-sm">
+          <p className="font-medium">{t("networkEmpty")}</p>
+          <p className="text-muted-foreground mt-1">{t("networkEmptyHint")}</p>
+        </div>
+      )}
     </div>
   );
 }
