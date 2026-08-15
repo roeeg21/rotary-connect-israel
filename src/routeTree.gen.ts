@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NetworkRouteImport } from './routes/network'
 import { Route as SavedRouteImport } from './routes/saved'
@@ -19,6 +20,11 @@ import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MeRoute = MeRouteImport.update({
@@ -49,6 +55,7 @@ const ProfileIdRoute = ProfileIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
   '/saved': typeof SavedRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
   '/saved': typeof SavedRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
   '/saved': typeof SavedRoute
@@ -74,12 +83,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/me' | '/network' | '/saved' | '/search' | '/profile/$id'
+  fullPaths:
+    '/' | '/login' | '/me' | '/network' | '/saved' | '/search' | '/profile/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/me' | '/network' | '/saved' | '/search' | '/profile/$id'
+  to:
+    '/' | '/login' | '/me' | '/network' | '/saved' | '/search' | '/profile/$id'
   id:
     | '__root__'
     | '/'
+    | '/login'
     | '/me'
     | '/network'
     | '/saved'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
   NetworkRoute: typeof NetworkRoute
   SavedRoute: typeof SavedRoute
@@ -103,6 +116,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/me': {
@@ -145,6 +165,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
   MeRoute: MeRoute,
   NetworkRoute: NetworkRoute,
   SavedRoute: SavedRoute,
