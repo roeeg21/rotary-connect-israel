@@ -5,9 +5,11 @@ import {
   BadgeCheck,
   Bookmark,
   BookmarkCheck,
+  Briefcase,
   Building2,
   MapPin,
   Share2,
+  Users,
 } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -15,6 +17,7 @@ import { toast } from "sonner";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { Tag } from "@/components/Tag";
 import { memberById } from "@/data/members";
+import { getFamilyMembers, getRelationshipLabel, type FamilyMember } from "@/data/family-members";
 import { useAppState } from "@/lib/app-state";
 import { useI18n } from "@/lib/i18n";
 
@@ -45,14 +48,52 @@ export const Route = createFileRoute("/profile/$id")({
   component: ProfilePage,
 });
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, icon }: { title: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <section className="border-t border-border py-6">
-      <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+      <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase flex items-center gap-2">
+        {icon}
         {title}
       </h2>
       <div className="mt-3">{children}</div>
     </section>
+  );
+}
+
+function FamilyMemberCard({ member, lang }: { member: FamilyMember; lang: "he" | "en" }) {
+  const relationshipLabel = getRelationshipLabel(member.relationship, lang);
+  const name = `${member.firstName[lang]} ${member.lastName[lang]}`;
+
+  return (
+    <div className="flex items-start gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-secondary/30">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-lg font-semibold">
+        {member.firstName[lang].charAt(0)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold">{name}</p>
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+            {relationshipLabel}
+          </span>
+        </div>
+        {member.profession && (
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {member.jobTitle?.[lang] || member.profession[lang]}
+          </p>
+        )}
+        {member.workplace && (
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Building2 className="size-3.5" aria-hidden />
+            {member.workplace}
+          </p>
+        )}
+        {member.age && !member.isMinor && (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {member.age} {lang === "he" ? "שנים" : "years old"}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -202,7 +243,67 @@ function ProfilePage() {
         <Section title={t("languages")}>
           <p className="text-sm">{member.languages.map((l) => l[lang]).join(" · ")}</p>
         </Section>
+
+        {/* Family Section */}
+        {member.accountType === "member" && (
+          <FamilySection memberId={member.id} lang={lang} />
+        )}
       </div>
     </div>
+  );
+}
+
+function FamilySection({ memberId, lang }: { memberId: string; lang: "he" | "en" }) {
+  const { t } = useI18n();
+  const familyMembers = getFamilyMembers(memberId);
+
+  if (familyMembers.length === 0) {
+    return null;
+  }
+
+  // Group by relationship type
+  const spouse = familyMembers.find((f) => f.relationship === "spouse");
+  const children = familyMembers.filter((f) => f.relationship === "child");
+  const others = familyMembers.filter((f) => !["spouse", "child"].includes(f.relationship));
+
+  return (
+    <Section title={t("family")} icon={<Users className="size-3.5" aria-hidden />}>
+      <div className="space-y-3">
+        {spouse && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {t("spouse")}
+            </p>
+            <FamilyMemberCard member={spouse} lang={lang} />
+          </div>
+        )}
+
+        {children.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {t("children")}
+            </p>
+            <div className="space-y-2">
+              {children.map((child) => (
+                <FamilyMemberCard key={child.id} member={child} lang={lang} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {others.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {t("familyMembers")}
+            </p>
+            <div className="space-y-2">
+              {others.map((other) => (
+                <FamilyMemberCard key={other.id} member={other} lang={lang} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
