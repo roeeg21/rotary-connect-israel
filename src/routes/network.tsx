@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft, ArrowRight, Building2, Briefcase, Lightbulb, MapPin, Users } from "lucide-react";
 
 import { members } from "@/data/members";
 import { useI18n } from "@/lib/i18n";
@@ -32,33 +33,52 @@ function countBy(get: (m: (typeof members)[number]) => { he: string; en: string 
   return [...map.values()].sort((a, b) => b.count - a.count);
 }
 
-function Group({
+function CategoryCard({
   title,
+  icon: Icon,
   items,
 }: {
   title: string;
+  icon: React.ElementType;
   items: { he: string; en: string; count: number }[];
 }) {
-  const { lang, t } = useI18n();
+  const { lang, t, dir } = useI18n();
+  const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
+
   return (
-    <section className="mt-10 first:mt-0">
-      <h2 className="font-heading text-base font-bold">{title}</h2>
-      <ul className="mt-3 divide-y divide-border border-y border-border">
-        {items.map((item) => (
+    <section className="rounded-xl border border-border bg-card shadow-card">
+      <div className="flex items-center gap-3 border-b border-border p-5">
+        <div className="flex size-10 items-center justify-center rounded-full bg-secondary">
+          <Icon className="size-5 text-muted-foreground" strokeWidth={1.8} />
+        </div>
+        <h2 className="text-base font-semibold">{title}</h2>
+      </div>
+      <ul className="divide-y divide-border">
+        {items.slice(0, 8).map((item) => (
           <li key={item.en}>
             <Link
               to="/search"
               search={{ q: item[lang] }}
-              className="hover:bg-secondary flex items-center justify-between px-1 py-3.5 text-sm"
+              className="flex items-center justify-between px-5 py-4 text-sm transition-colors hover:bg-secondary/50"
             >
               <span className="font-medium">{item[lang]}</span>
-              <span className="text-muted-foreground text-xs">
-                {item.count} {t("people")}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  {item.count} {t("people")}
+                </span>
+                <Arrow className="size-4 text-muted-foreground" />
+              </div>
             </Link>
           </li>
         ))}
       </ul>
+      {items.length > 8 && (
+        <div className="border-t border-border p-4 text-center">
+          <Link to="/search" className="text-sm font-medium text-primary hover:underline">
+            {t("viewAll")} ({items.length})
+          </Link>
+        </div>
+      )}
     </section>
   );
 }
@@ -72,20 +92,27 @@ function NetworkPage() {
   const hasMembers = members.length > 0;
 
   return (
-    <div className="container-app max-w-3xl py-8 sm:py-12">
-      <h1 className="font-heading text-2xl font-bold">{t("exploreTitle")}</h1>
-      <p className="text-muted-foreground mt-1 text-sm">{t("guestOneSearch")}</p>
+    <div className="container-wide py-8 lg:py-12">
+      {/* Header */}
+      <div className="mx-auto max-w-2xl text-center">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("exploreTitle")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{t("guestOneSearch")}</p>
+      </div>
+
       {hasMembers ? (
-        <>
-          <Group title={t("industries")} items={industries} />
-          <Group title={t("expertise")} items={expertise} />
-          <Group title={t("professions")} items={professions} />
-          <Group title={t("locations")} items={locations} />
-        </>
+        <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          <CategoryCard title={t("industries")} icon={Building2} items={industries} />
+          <CategoryCard title={t("expertise")} icon={Lightbulb} items={expertise} />
+          <CategoryCard title={t("professions")} icon={Briefcase} items={professions} />
+          <CategoryCard title={t("locations")} icon={MapPin} items={locations} />
+        </div>
       ) : (
-        <div className="mt-6 rounded-lg border border-dashed border-border px-4 py-6 text-sm">
-          <p className="font-medium">{t("networkEmpty")}</p>
-          <p className="text-muted-foreground mt-1">{t("networkEmptyHint")}</p>
+        <div className="mx-auto mt-10 max-w-md rounded-xl border border-border bg-card p-10 text-center shadow-card">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary">
+            <Users className="size-7 text-muted-foreground" strokeWidth={1.8} />
+          </div>
+          <p className="mt-5 text-lg font-semibold">{t("networkEmpty")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t("networkEmptyHint")}</p>
         </div>
       )}
     </div>

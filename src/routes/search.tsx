@@ -50,13 +50,13 @@ function FilterGroup({
 }) {
   return (
     <div>
-      <label className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </label>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || undefined)}
-        className="bg-card focus:border-primary mt-2 h-10 w-full rounded-md border border-border px-3 text-sm outline-none"
+        className="mt-2 h-11 w-full rounded-xl border bg-card px-3 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
       >
         <option value="">—</option>
         {options.map((o) => (
@@ -92,7 +92,7 @@ function SearchPage() {
   const activeCount = Object.values(facets).filter(Boolean).length;
 
   const filters = (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <FilterGroup
         label={t("company")}
         value={facets.company}
@@ -130,7 +130,7 @@ function SearchPage() {
         <button
           type="button"
           onClick={() => setFacets({})}
-          className="text-primary text-sm font-semibold"
+          className="text-sm font-semibold text-primary transition-colors hover:text-primary/80"
         >
           {t("clearFilters")}
         </button>
@@ -139,86 +139,105 @@ function SearchPage() {
   );
 
   return (
-    <div className="container-app py-6 sm:py-10">
+    <div className="container-wide py-8 lg:py-12">
+      {/* Search Bar */}
       <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-none">
-        <SearchField defaultValue={q} size="md" />
+        <div className="rounded-xl border border-border bg-card p-4 shadow-card sm:p-5">
+          <SearchField defaultValue={q} size="md" />
+        </div>
       </div>
 
-      <div className="mt-6 lg:grid lg:grid-cols-[240px_1fr] lg:gap-10">
+      <div className="mt-8 lg:grid lg:grid-cols-[280px_1fr] lg:gap-8">
+        {/* Filters Sidebar - Desktop */}
         <aside className="hidden lg:block">
-          <h2 className="mb-4 font-heading text-sm font-bold">{t("filters")}</h2>
-          {filters}
+          <div className="sticky top-20 rounded-xl border border-border bg-card p-5 shadow-card">
+            <h2 className="mb-5 text-sm font-semibold">{t("filters")}</h2>
+            {filters}
+          </div>
         </aside>
 
+        {/* Results */}
         <div>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-muted-foreground text-sm">
-              {blocked ? "—" : hits.length} {t("results")}
-              {q && <span className="text-foreground font-medium"> · {q}</span>}
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">{blocked ? "—" : hits.length}</span>{" "}
+              {t("results")}
+              {q && <span className="ms-1 font-medium text-foreground">· {q}</span>}
             </p>
+
+            {/* Mobile Filters */}
             <Sheet>
               <SheetTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "bg-card inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium lg:hidden",
+                    "inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all lg:hidden",
                     activeCount > 0 && "border-primary text-primary",
                   )}
                 >
-                  <SlidersHorizontal className="size-4" aria-hidden />
+                  <SlidersHorizontal className="size-4" strokeWidth={1.8} aria-hidden />
                   {t("filters")}
-                  {activeCount > 0 && ` (${activeCount})`}
+                  {activeCount > 0 && (
+                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                      {activeCount}
+                    </span>
+                  )}
                 </button>
               </SheetTrigger>
-              <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-xl">
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
                 <SheetHeader>
                   <SheetTitle>{t("filters")}</SheetTitle>
                 </SheetHeader>
-                <div className="px-4 pb-8">{filters}</div>
+                <div className="px-4 pb-10 pt-4">{filters}</div>
               </SheetContent>
             </Sheet>
           </div>
 
+          {/* Results Grid */}
           {!blocked && hits.length > 0 && (
-            <div className="mt-4 grid gap-3">
+            <div className="grid gap-4">
               {hits.map((hit) => (
                 <MemberCard key={hit.member.id} member={hit.member} reasons={hit.reasons} />
               ))}
             </div>
           )}
 
+          {/* Empty State */}
           {!blocked && hits.length === 0 && (
-            <div className="mt-10 flex flex-col items-center rounded-lg border border-dashed border-border py-16 text-center">
-              <UserSearch className="text-muted-foreground size-8" aria-hidden />
-              <p className="mt-4 font-heading font-semibold">{t("noResults")}</p>
-              <p className="text-muted-foreground mt-1 max-w-xs text-sm">{t("noResultsHint")}</p>
+            <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary">
+                <UserSearch className="size-7 text-muted-foreground" strokeWidth={1.8} aria-hidden />
+              </div>
+              <p className="mt-5 text-lg font-semibold">{t("noResults")}</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{t("noResultsHint")}</p>
             </div>
           )}
         </div>
       </div>
 
+      {/* Guest Limit Dialog */}
       <Dialog open={blocked} onOpenChange={(o) => !o && void navigate({ to: "/" })}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("guestLimitTitle")}</DialogTitle>
             <DialogDescription>{t("guestLimitBody")}</DialogDescription>
           </DialogHeader>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row-reverse">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row-reverse">
             <Link
               to="/register"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex flex-1 items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold"
+              className="inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
             >
               {t("registerNow")}
             </Link>
             <Link
               to="/"
-              className="hover:bg-secondary inline-flex flex-1 items-center justify-center rounded-md border border-border px-4 py-2.5 text-sm font-medium"
+              className="inline-flex flex-1 items-center justify-center rounded-xl border border-border px-4 py-3 text-sm font-medium transition-colors hover:bg-secondary"
             >
               {t("later")}
             </Link>
           </div>
           {isGuest && (
-            <p className="text-muted-foreground text-xs">{t("guestOneSearch")}</p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">{t("guestOneSearch")}</p>
           )}
         </DialogContent>
       </Dialog>

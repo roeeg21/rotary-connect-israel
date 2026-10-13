@@ -81,15 +81,15 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-muted-foreground text-xs font-semibold">{label}</span>
-      <div className="mt-1.5">{children}</div>
-      {hint && <span className="text-muted-foreground mt-1 block text-xs">{hint}</span>}
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="mt-2">{children}</div>
+      {hint && <span className="mt-1.5 block text-xs text-muted-foreground">{hint}</span>}
     </label>
   );
 }
 
 const inputCls =
-  "bg-card focus:border-primary h-11 w-full rounded-md border border-border px-3 text-sm outline-none";
+  "h-12 w-full rounded-xl border bg-card px-4 text-[15px] transition-all outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 type JobsEditorLabels = {
   position: string;
@@ -330,32 +330,36 @@ function RegisterPage() {
   };
 
   return (
-    <div className="container-app max-w-2xl py-8 sm:py-12" dir={dir}>
-      <div className="flex justify-center">
-        <Logo size="lg" />
+    <div className="container-narrow py-10 sm:py-14" dir={dir}>
+      {/* Header */}
+      <div className="text-center">
+        <div className="flex justify-center">
+          <Logo size="lg" />
+        </div>
+        <h1 className="mt-6 text-2xl font-bold tracking-tight sm:text-3xl">
+          {tr("יצירת הפרופיל שלך", "Create your profile")}
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {tr("ארבעה שלבים קצרים · בערך 3 דקות", "Four short steps · about 3 minutes")}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {tr(
+            "אפשר לעבור לאנגלית בכל רגע דרך מתג השפה בראש העמוד.",
+            "You can switch to Hebrew or English anytime from the language toggle in the header.",
+          )}
+        </p>
       </div>
-      <h1 className="mt-6 text-center font-heading text-2xl font-bold">
-        {tr("יצירת הפרופיל שלך", "Create your profile")}
-      </h1>
-      <p className="text-muted-foreground mt-1 text-center text-sm">
-        {tr("ארבעה שלבים קצרים · בערך 3 דקות", "Four short steps · about 3 minutes")}
-      </p>
-      <p className="text-muted-foreground mt-2 text-center text-xs">
-        {tr(
-          "אפשר לעבור לאנגלית בכל רגע דרך מתג השפה בראש העמוד.",
-          "You can switch to Hebrew or English anytime from the language toggle in the header.",
-        )}
-      </p>
 
-      <ol className="mt-6 grid grid-cols-4 gap-2" aria-label={tr("התקדמות", "Progress")}>
+      {/* Progress Steps */}
+      <ol className="mt-8 grid grid-cols-4 gap-3" aria-label={tr("התקדמות", "Progress")}>
         {steps.map((label, i) => (
-          <li key={label}>
+          <li key={label} className="text-center">
             <div
-              className={`h-1 rounded-full ${i + 1 <= step ? "bg-primary" : "bg-border"}`}
+              className={`h-1 rounded-full transition-colors ${i + 1 <= step ? "bg-primary" : "bg-border"}`}
               aria-hidden
             />
             <span
-              className={`mt-2 block text-[11px] font-semibold ${
+              className={`mt-2 block text-[11px] font-semibold transition-colors ${
                 i + 1 === step ? "text-foreground" : "text-muted-foreground"
               }`}
             >
@@ -365,7 +369,9 @@ function RegisterPage() {
         ))}
       </ol>
 
-      <div className="mt-8 space-y-5">
+      {/* Form Card */}
+      <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
+        <div className="space-y-6">
         {step === 1 && (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -725,36 +731,38 @@ function RegisterPage() {
             })}
           </>
         )}
-      </div>
+        </div>
 
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-5">
-        <button
-          type="button"
-          disabled={step === 1 || isSubmitting}
-          onClick={() => setStep((s) => Math.max(1, s - 1))}
-          className="hover:bg-secondary rounded-md border border-border px-4 py-2.5 text-sm font-semibold disabled:opacity-40"
-        >
-          {tr("חזרה", "Back")}
-        </button>
-        {step < 4 ? (
+        {/* Form Navigation */}
+        <div className="mt-8 flex items-center justify-between gap-4 border-t border-border pt-6">
           <button
             type="button"
-            disabled={isSubmitting}
-            onClick={next}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold disabled:opacity-60"
+            disabled={step === 1 || isSubmitting}
+            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            className="rounded-xl border border-border px-5 py-3 text-sm font-semibold transition-all hover:bg-secondary disabled:opacity-40"
           >
-            {tr("המשך", "Continue")}
+            {tr("חזרה", "Back")}
           </button>
-        ) : (
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={finish}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-6 py-2.5 text-sm font-semibold disabled:opacity-60"
-          >
-            {isSubmitting ? tr("שומר...", "Saving...") : tr("סיום", "Finish")}
-          </button>
-        )}
+          {step < 4 ? (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={next}
+              className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-raised disabled:opacity-60"
+            >
+              {tr("המשך", "Continue")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={finish}
+              className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-raised disabled:opacity-60"
+            >
+              {isSubmitting ? tr("שומר...", "Saving...") : tr("סיום", "Finish")}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

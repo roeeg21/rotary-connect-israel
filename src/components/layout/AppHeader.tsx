@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bookmark, Compass, Search, User } from "lucide-react";
+import { Bell, Bookmark, Compass, MessageCircle, Search, User } from "lucide-react";
 
 import { Logo } from "@/components/brand/RotaryMark";
 import { PersonAvatar } from "@/components/PersonAvatar";
@@ -18,7 +18,7 @@ function LanguageToggle() {
   const { lang, setLang } = useI18n();
   return (
     <div
-      className="inline-flex items-center rounded-md border border-border p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-full bg-secondary p-0.5"
       role="group"
       aria-label="Language"
     >
@@ -29,9 +29,9 @@ function LanguageToggle() {
           onClick={() => setLang(l)}
           aria-pressed={lang === l}
           className={cn(
-            "rounded-[5px] px-2 py-1 text-xs font-semibold transition-colors",
+            "rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200",
             lang === l
-              ? "bg-primary text-primary-foreground"
+              ? "bg-card text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -48,49 +48,80 @@ export function AppHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <header className="bg-background/90 sticky top-0 z-40 border-b border-border backdrop-blur">
-      <div className="container-app flex h-16 items-center justify-between gap-4">
-        <Link to="/" aria-label="Rotary Connect Israel">
-          <Logo />
+    <header className="glass sticky top-0 z-40 border-b border-border">
+      <div className="container-wide flex h-14 items-center justify-between gap-6">
+        {/* Logo */}
+        <Link to="/" className="transition-opacity hover:opacity-80" aria-label="Rotary Connect Israel">
+          <Logo size="sm" />
         </Link>
 
+        {/* Desktop Navigation */}
         <nav className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => {
             const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+            const Icon = item.icon;
             return (
               <Link
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
                   active
                     ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
                 )}
               >
-                {t(item.key)}
+                <Icon className="size-4" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+                <span>{t(item.key)}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="flex items-center gap-2">
+        {/* Right Section */}
+        <div className="flex items-center gap-3">
           <LanguageToggle />
+
           {account ? (
-            <Link to="/me" aria-label={t("myProfile")}>
-              <PersonAvatar name={`${account.firstName} ${account.lastName}`} size="sm" />
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Notifications - hidden on mobile */}
+              <button
+                type="button"
+                className="hidden rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:flex"
+                aria-label="Notifications"
+              >
+                <Bell className="size-5" strokeWidth={1.8} />
+              </button>
+
+              {/* Messages - hidden on mobile */}
+              <button
+                type="button"
+                className="hidden rounded-full p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:flex"
+                aria-label="Messages"
+              >
+                <MessageCircle className="size-5" strokeWidth={1.8} />
+              </button>
+
+              {/* Profile */}
+              <Link
+                to="/me"
+                className="rounded-full ring-2 ring-transparent transition-all hover:ring-primary/20"
+                aria-label={t("myProfile")}
+              >
+                <PersonAvatar name={`${account.firstName} ${account.lastName}`} size="sm" />
+              </Link>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link
                 to="/login"
-                className="text-muted-foreground hover:text-foreground hidden rounded-md px-3 py-2 text-sm font-medium sm:inline-flex"
+                className="hidden rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
               >
                 {t("signIn")}
               </Link>
               <Link
                 to="/register"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold transition-colors"
+                className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90 hover:shadow-raised"
               >
                 {lang === "he" ? "הרשמה" : "Join"}
               </Link>

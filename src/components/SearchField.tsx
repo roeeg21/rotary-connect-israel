@@ -17,6 +17,7 @@ export function SearchField({
   const { t } = useI18n();
   const navigate = useNavigate();
   const [value, setValue] = useState(defaultValue);
+  const [isFocused, setIsFocused] = useState(false);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -28,7 +29,12 @@ export function SearchField({
   return (
     <form onSubmit={onSubmit} role="search" className="relative w-full">
       <Search
-        className="text-muted-foreground pointer-events-none absolute top-1/2 size-5 -translate-y-1/2 start-4"
+        className={cn(
+          "pointer-events-none absolute top-1/2 -translate-y-1/2 transition-colors duration-200 start-4",
+          isFocused ? "text-primary" : "text-muted-foreground",
+          size === "lg" ? "size-5" : "size-4",
+        )}
+        strokeWidth={1.8}
         aria-hidden
       />
       <input
@@ -36,11 +42,14 @@ export function SearchField({
         value={value}
         autoFocus={autoFocus}
         onChange={(e) => setValue(e.target.value)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         placeholder={t("searchPlaceholder")}
         aria-label={t("searchPlaceholder")}
         className={cn(
-          "bg-card focus:border-primary w-full rounded-lg border border-border ps-12 pe-4 text-[15px] shadow-card transition-colors outline-none placeholder:text-muted-foreground",
-          size === "lg" ? "h-14" : "h-11",
+          "w-full rounded-xl border bg-card text-[15px] shadow-card transition-all duration-200 outline-none placeholder:text-muted-foreground",
+          "focus:border-primary focus:shadow-raised focus:ring-4 focus:ring-primary/10",
+          size === "lg" ? "h-14 ps-12 pe-4" : "h-11 ps-10 pe-4",
         )}
       />
     </form>
