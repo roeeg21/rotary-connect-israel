@@ -1,0 +1,27 @@
+{
+  "name": "Rotary Connect Israel",
+  "short_name": "Rotary IL",
+  "description": "Professional networking platform for Rotary Israel members",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0071E3",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "social"],
+  "lang": "he",
+  "dir": "rtl"
+}
