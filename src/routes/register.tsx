@@ -118,9 +118,9 @@ function RegisterChatPage() {
           </Button>
 
           {/* Logo and title */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Logo size="sm" />
-            <span className="font-heading text-sm font-semibold">
+            <span className="hidden font-heading text-sm font-semibold min-[400px]:inline">
               {tr("הרשמה חכמה", "Smart Registration")}
             </span>
           </div>
