@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ArrowRight, Globe, RotateCcw } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Logo } from "@/components/brand/RotaryMark";
 import { ChatContainer, ProgressIndicator } from "@/components/chat";
@@ -82,6 +82,15 @@ function RegisterChatPage() {
     // Use demo mode for now (no server function)
     // sendMessageFn: sendMessageToServer,
   });
+
+  // Track language changes and reset conversation
+  const prevLangRef = useRef(lang);
+  useEffect(() => {
+    if (prevLangRef.current !== lang) {
+      prevLangRef.current = lang;
+      reset(); // Reset conversation to start fresh in new language
+    }
+  }, [lang, reset]);
 
   // Translation helper
   const tr = useMemo(

@@ -1,0 +1,27 @@
+- generic [active]:
+  - generic [ref=e1]:
+    - banner [ref=e2]:
+      - generic [ref=e3]:
+        - button "חזרה" [ref=e4] [cursor=pointer]
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - img "Rotary" [ref=e8]
+            - generic [ref=e38]:
+              - generic [ref=e39]: Rotary Connect
+              - generic [ref=e40]: Israel · District 2490
+          - generic [ref=e41]: הרשמה חכמה
+        - generic [ref=e42]:
+          - button "החלפת שפה" [ref=e43] [cursor=pointer]
+          - button "התחלה מחדש" [ref=e44] [cursor=pointer]
+    - generic [ref=e48]:
+      - generic [ref=e49]: ברוכים הבאים
+      - generic [ref=e50]: 0%
+    - generic [ref=e58]:
+      - generic [ref=e59]:
+        - textbox "הקלידו את התשובה שלכם..." [ref=e60]
+        - button "שליחה" [disabled] [ref=e61]
+      - paragraph [ref=e64]: Enter לשליחה · Shift+Enter לשורה חדשה
+    - paragraph [ref=e66]:
+      - text: מעדיפים טופס מסורתי?
+      - button "לחצו כאן" [ref=e67]
+  - region "Notifications alt+T"

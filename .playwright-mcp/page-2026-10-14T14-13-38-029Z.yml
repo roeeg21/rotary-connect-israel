@@ -1,0 +1,38 @@
+- generic:
+  - generic [ref=f1e1]:
+    - banner [ref=f1e2]:
+      - generic [ref=f1e3]:
+        - button "Back" [ref=f1e80] [cursor=pointer]
+        - generic [ref=f1e5]:
+          - generic [ref=f1e6]:
+            - img "Rotary" [ref=f1e8]
+            - generic [ref=f1e38]:
+              - generic [ref=f1e39]: Rotary Connect
+              - generic [ref=f1e40]: Israel · District 2490
+          - generic [ref=f1e41]: Smart Registration
+        - generic [ref=f1e42]:
+          - button "Toggle language" [active] [ref=f1e81] [cursor=pointer]
+          - button "Start over" [ref=f1e82] [cursor=pointer]
+    - generic [ref=f1e48]:
+      - generic [ref=f1e49]: Welcome
+      - generic [ref=f1e50]: 0%
+    - generic [ref=f1e54]:
+      - generic [ref=f1e56]:
+        - generic [ref=f1e85]:
+          - generic [ref=f1e86]:
+            - generic [ref=f1e87]: R
+            - generic [ref=f1e88]: Rotary Connect
+          - generic [ref=f1e89]: Hello! I'm here to help you join the Rotary Connect Israel community. You can chat with me naturally, and I'll guide you through the entire process. Shall we begin?
+          - generic [ref=f1e90]: 05:13 PM
+        - generic [ref=f1e77]:
+          - button "Let's start!" [ref=f1e91]
+          - button "Tell me more" [ref=f1e92]
+      - generic [ref=f1e58]:
+        - generic [ref=f1e59]:
+          - textbox "Type your answer..." [ref=f1e93]
+          - button "Send" [disabled] [ref=f1e94]
+        - paragraph [ref=f1e64]: Enter to send · Shift+Enter for new line
+    - paragraph [ref=f1e66]:
+      - text: Prefer a traditional form?
+      - button "Click here" [ref=f1e95]
+  - region "Notifications alt+T"

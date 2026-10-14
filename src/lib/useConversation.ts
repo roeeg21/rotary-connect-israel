@@ -23,7 +23,8 @@ type ConversationAction =
   | { type: "UPDATE_STATE"; payload: Partial<ConversationState> }
   | { type: "SET_STAGE"; payload: RegistrationStage }
   | { type: "SET_LANGUAGE"; payload: "he" | "en" }
-  | { type: "SET_ERROR"; payload: string | null };
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "RESET"; payload: { state: ConversationState; message: ChatMessage; quickReplies: QuickReply[] } };
 
 interface ConversationReducerState {
   state: ConversationState;
@@ -82,6 +83,15 @@ function conversationReducer(
 
     case "SET_ERROR":
       return { ...state, error: action.payload };
+
+    case "RESET":
+      return {
+        state: action.payload.state,
+        messages: [action.payload.message],
+        quickReplies: action.payload.quickReplies,
+        isLoading: false,
+        error: null,
+      };
 
     default:
       return state;
@@ -258,9 +268,29 @@ export function useConversation(options: UseConversationOptions = {}) {
   // Reset conversation
   const reset = useCallback(() => {
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
+
+    // Create fresh welcome message in current language
+    const welcomeQuickReplies: QuickReply[] = [
+      { id: "start", label: language === "he" ? "בוא נתחיל!" : "Let's start!", value: "start" },
+      { id: "info", label: language === "he" ? "ספר לי עוד" : "Tell me more", value: "info" },
+    ];
+
+    const welcomeMessage = createMessage(
+      "assistant",
+      language === "he"
+        ? "שלום! אני כאן כדי לעזור לך להצטרף לקהילת רוטרי קונקט ישראל. תוכל/י לשוחח איתי בשפה טבעית, ואני אדריך אותך לאורך כל התהליך.\n\nנתחיל?"
+        : "Hello! I'm here to help you join the Rotary Connect Israel community. You can chat with me naturally, and I'll guide you through the entire process.\n\nShall we begin?",
+      welcomeQuickReplies
+    );
+
+    // Reset everything at once
     dispatch({
-      type: "SET_STATE",
-      payload: createInitialState(crypto.randomUUID(), language),
+      type: "RESET",
+      payload: {
+        state: createInitialState(crypto.randomUUID(), language),
+        message: welcomeMessage,
+        quickReplies: welcomeQuickReplies,
+      },
     });
   }, [language]);
 
