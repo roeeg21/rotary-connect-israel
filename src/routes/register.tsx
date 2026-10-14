@@ -90,9 +90,9 @@ function RegisterChatPage() {
   );
 
   return (
-    <div className="flex min-h-svh flex-col bg-background" dir={dir}>
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-border">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background" dir={dir}>
+      {/* Header - fixed at top */}
+      <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
           {/* Back button */}
           <Button
@@ -141,15 +141,17 @@ function RegisterChatPage() {
         </div>
       </header>
 
-      {/* Progress indicator */}
-      <ProgressIndicator
-        currentStage={state.currentStage}
-        progress={progress}
-        isRTL={isRTL}
-      />
+      {/* Progress indicator - fixed below header */}
+      <div className="shrink-0">
+        <ProgressIndicator
+          currentStage={state.currentStage}
+          progress={progress}
+          isRTL={isRTL}
+        />
+      </div>
 
-      {/* Chat container - takes remaining height */}
-      <div className="flex-1">
+      {/* Chat container - fills remaining space, only messages scroll */}
+      <div className="min-h-0 flex-1">
         <div className="mx-auto h-full max-w-3xl">
           <ChatContainer
             messages={messages}
@@ -158,13 +160,13 @@ function RegisterChatPage() {
             onQuickReplySelect={handleQuickReply}
             isLoading={isLoading}
             isRTL={isRTL}
-            className="h-[calc(100svh-8rem)]"
+            className="h-full"
           />
         </div>
       </div>
 
-      {/* Alternative registration link */}
-      <div className="border-t border-border bg-surface/50 py-3 text-center">
+      {/* Alternative registration link - fixed at bottom */}
+      <div className="shrink-0 border-t border-border bg-surface/95 py-2 text-center backdrop-blur-sm">
         <p className="text-sm text-muted-foreground">
           {tr("מעדיפים טופס מסורתי?", "Prefer a traditional form?")}{" "}
           <button

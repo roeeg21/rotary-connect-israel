@@ -50,10 +50,10 @@ export function ChatContainer({
 
   return (
     <div className={cn("flex h-full flex-col bg-background", className)}>
-      {/* Messages area */}
+      {/* Messages area - scrollable */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto"
+        className="min-h-0 flex-1 overflow-y-auto"
         onScroll={handleScroll}
       >
         <div className="py-4">
@@ -83,14 +83,17 @@ export function ChatContainer({
         </div>
       </div>
 
-      {/* Input area - fixed at bottom */}
-      <ChatInput
-        onSend={onSendMessage}
-        disabled={disabled}
-        isLoading={isLoading}
-        isRTL={isRTL}
-        placeholder={placeholder}
-      />
+      {/* Input area - fixed at bottom, never moves */}
+      <div className="shrink-0">
+        <ChatInput
+          onSend={onSendMessage}
+          disabled={disabled}
+          isLoading={isLoading}
+          isRTL={isRTL}
+          placeholder={placeholder}
+          autoFocus
+        />
+      </div>
     </div>
   );
 }

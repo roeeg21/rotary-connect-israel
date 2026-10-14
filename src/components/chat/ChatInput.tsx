@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Loader2, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ interface ChatInputProps {
   isLoading?: boolean;
   isRTL: boolean;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
 export function ChatInput({
@@ -16,9 +17,26 @@ export function ChatInput({
   isLoading,
   isRTL,
   placeholder,
+  autoFocus = true,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const wasLoadingRef = useRef(isLoading);
+
+  // Auto-focus on mount
+  useEffect(() => {
+    if (autoFocus && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [autoFocus]);
+
+  // Re-focus when loading finishes (assistant done responding)
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading && !disabled) {
+      textareaRef.current?.focus();
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading, disabled]);
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
@@ -26,9 +44,13 @@ export function ChatInput({
     onSend(trimmed);
     setValue("");
 
-    // Reset textarea height
+    // Reset textarea height and maintain focus
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
+      // Keep focus on input for continuous typing
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
     }
   }, [value, disabled, isLoading, onSend]);
 
