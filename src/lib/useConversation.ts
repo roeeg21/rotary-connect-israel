@@ -368,8 +368,57 @@ async function simulateResponse(
       if (!profile.city) {
         updatedProfile.city = content.trim();
         responseText = lang === "he"
-          ? `${updatedProfile.city}, מצוין! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
-          : `${updatedProfile.city}, great! Now tell me about your profession - what do you do?`;
+          ? `${updatedProfile.city}, מצוין!\n\nהאם תרצה להוסיף מספר טלפון ליצירת קשר? (אופציונלי)`
+          : `${updatedProfile.city}, great!\n\nWould you like to add a phone number for contact? (optional)`;
+        nextQuickReplies = [
+          { id: "add_phone", label: lang === "he" ? "כן, להוסיף" : "Yes, add", value: "add_phone" },
+          { id: "skip_phone", label: lang === "he" ? "דלג" : "Skip", value: "skip" },
+        ];
+      } else if (/add_phone|כן|להוסיף/i.test(content) && !state.contactInfo?.phone) {
+        responseText = lang === "he"
+          ? `מה מספר הטלפון שלך?`
+          : `What's your phone number?`;
+      } else if (phoneMatch && !state.contactInfo?.phone) {
+        // Store phone number
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { contactInfo: { ...state.contactInfo, phone: phoneMatch[0] } },
+        });
+        responseText = lang === "he"
+          ? `תודה! האם תרצה להוסיף גם WhatsApp או Telegram? (אופציונלי)`
+          : `Thanks! Would you like to add WhatsApp or Telegram too? (optional)`;
+        nextQuickReplies = [
+          { id: "whatsapp", label: "WhatsApp", value: "whatsapp" },
+          { id: "telegram", label: "Telegram", value: "telegram" },
+          { id: "skip", label: lang === "he" ? "דלג" : "Skip", value: "skip" },
+        ];
+      } else if (/whatsapp/i.test(content)) {
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { contactInfo: { ...state.contactInfo, whatsapp: state.contactInfo?.phone || "" } },
+        });
+        responseText = lang === "he"
+          ? `מצוין! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
+          : `Great! Now tell me about your profession - what do you do?`;
+        nextStage = "professional";
+      } else if (/telegram/i.test(content)) {
+        responseText = lang === "he"
+          ? `מה שם המשתמש שלך ב-Telegram?`
+          : `What's your Telegram username?`;
+      } else if (content.startsWith("@") || /^[a-zA-Z0-9_]+$/.test(content.trim())) {
+        const telegramUsername = content.trim().replace(/^@/, "");
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { contactInfo: { ...state.contactInfo, telegram: telegramUsername } },
+        });
+        responseText = lang === "he"
+          ? `תודה! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
+          : `Thanks! Now tell me about your profession - what do you do?`;
+        nextStage = "professional";
+      } else if (/skip|דלג/i.test(content)) {
+        responseText = lang === "he"
+          ? `בסדר! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
+          : `Okay! Now tell me about your profession - what do you do?`;
         nextStage = "professional";
       } else {
         responseText = lang === "he"

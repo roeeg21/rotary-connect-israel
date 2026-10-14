@@ -11,9 +11,10 @@ import {
   Share2,
   Users,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { ContactDialog } from "@/components/ContactDialog";
 import { PersonAvatar } from "@/components/PersonAvatar";
 import { Tag } from "@/components/Tag";
 import { memberById } from "@/data/members";
@@ -103,6 +104,7 @@ function ProfilePage() {
   const { isSaved, toggleSaved, addRecentlyViewed } = useAppState();
   const saved = isSaved(member.id);
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
 
   useEffect(() => {
     addRecentlyViewed(member.id);
@@ -148,10 +150,21 @@ function ProfilePage() {
         </div>
       </header>
 
+      {/* Contact Dialog */}
+      <ContactDialog
+        open={contactDialogOpen}
+        onOpenChange={setContactDialogOpen}
+        name={name}
+        position={member.position[lang]}
+        company={member.company}
+        photo={member.photo}
+        contactInfo={member.contactInfo}
+      />
+
       <div className="mt-6 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => toast.success(`${t("contactPerson")} ${name}`)}
+          onClick={() => setContactDialogOpen(true)}
           className="bg-primary text-primary-foreground hover:bg-primary/90 h-11 flex-1 rounded-md px-5 text-sm font-semibold transition-colors sm:flex-none"
         >
           {t("contactPerson")} {member.name[lang].split(" ")[0]}

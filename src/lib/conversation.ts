@@ -35,6 +35,14 @@ export type RegistrationStage =
   | "review"
   | "completed";
 
+// Contact info structure
+export interface ExtractedContactInfo {
+  phone?: string;
+  whatsapp?: string;
+  telegram?: string;
+  preferredContact?: "email" | "phone" | "whatsapp" | "telegram";
+}
+
 // Extracted profile data structure
 export interface ExtractedProfile {
   firstName?: string;
@@ -94,6 +102,7 @@ export interface ConversationState {
 
   // Extracted data
   profile: ExtractedProfile;
+  contactInfo: ExtractedContactInfo;
   spouse?: ExtractedSpouse;
   children: ExtractedChild[];
   networkingPreferences: NetworkingPreferences;
@@ -156,6 +165,7 @@ export function createInitialState(sessionId: string, language: "he" | "en" = "h
     completedStages: [],
     pendingQuestions: [],
     profile: {},
+    contactInfo: {},
     children: [],
     networkingPreferences: {},
     consent: {},

@@ -50,7 +50,7 @@ function LoginPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                void navigate({ to: "/register" });
+                void navigate({ to: "/register-chat" });
               }}
             >
               <label className="block">
@@ -95,7 +95,7 @@ function LoginPage() {
             {/* Google Sign In */}
             <button
               type="button"
-              onClick={() => void navigate({ to: "/register" })}
+              onClick={() => void navigate({ to: "/register-chat" })}
               className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-card text-sm font-semibold transition-all hover:bg-secondary"
             >
               <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
@@ -153,12 +153,12 @@ function LoginPage() {
                 to="/register-chat"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-raised"
               >
-                {he ? "הרשמה חכמה בשיחה" : "Smart chat registration"}
+                {he ? "הרשמה חכמה בשיחה (מומלץ)" : "Smart chat registration (Recommended)"}
                 <Arrow className="size-4" />
               </Link>
               <Link
                 to="/register"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition-all hover:bg-secondary"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
               >
                 {he ? "טופס מסורתי" : "Traditional form"}
               </Link>

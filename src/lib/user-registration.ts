@@ -29,6 +29,13 @@ export const socialProfilesSchema = z.object({
   linkedin: z.string().trim(),
 });
 
+export const contactInfoSchema = z.object({
+  phone: z.string().trim().optional(),
+  whatsapp: z.string().trim().optional(),
+  telegram: z.string().trim().optional(),
+  preferredContact: z.enum(["email", "phone", "whatsapp", "telegram"]).optional(),
+});
+
 export const registrationSchema = z.object({
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
@@ -38,6 +45,7 @@ export const registrationSchema = z.object({
   customClub: z.string().trim(),
   joinYear: z.string().trim().min(1),
   socialProfiles: socialProfilesSchema,
+  contactInfo: contactInfoSchema.optional(),
   me: personSchema,
   married: z.enum(["yes", "no"]),
   spouse: personSchema.nullable(),
@@ -49,4 +57,5 @@ export type Job = z.infer<typeof jobSchema>;
 export type Person = z.infer<typeof personSchema>;
 export type Child = z.infer<typeof childSchema>;
 export type SocialProfiles = z.infer<typeof socialProfilesSchema>;
+export type ContactInfo = z.infer<typeof contactInfoSchema>;
 export type RegistrationInput = z.infer<typeof registrationSchema>;

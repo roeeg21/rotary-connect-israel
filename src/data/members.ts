@@ -1,5 +1,13 @@
 export type Bi = { he: string; en: string };
 
+export type ContactInfo = {
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  telegram?: string;
+  preferredContact?: "email" | "phone" | "whatsapp" | "telegram";
+};
+
 export type Member = {
   id: string;
   name: Bi;
@@ -22,6 +30,7 @@ export type Member = {
   familyOf?: Bi;
   photo?: string;
   isNew?: boolean;
+  contactInfo?: ContactInfo;
 };
 
 export const members: Member[] = [
@@ -55,6 +64,12 @@ export const members: Member[] = [
     ],
     accountType: "member",
     isNew: true,
+    contactInfo: {
+      email: "danny@cohenlaw.co.il",
+      phone: "054-1234567",
+      whatsapp: "054-1234567",
+      preferredContact: "email",
+    },
   },
   {
     id: "m2",
