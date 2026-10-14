@@ -148,13 +148,21 @@ function LoginPage() {
             <p className="text-sm text-muted-foreground">
               {he ? "אין לכם חשבון?" : "No account yet?"}{" "}
             </p>
-            <Link
-              to="/register"
-              className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-            >
-              {t("createAccount")}
-              <Arrow className="size-4" />
-            </Link>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Link
+                to="/register-chat"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-raised"
+              >
+                {he ? "הרשמה חכמה בשיחה" : "Smart chat registration"}
+                <Arrow className="size-4" />
+              </Link>
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition-all hover:bg-secondary"
+              >
+                {he ? "טופס מסורתי" : "Traditional form"}
+              </Link>
+            </div>
           </div>
         </div>
       </div>

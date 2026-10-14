@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NetworkRouteImport } from './routes/network'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RegisterChatRouteImport } from './routes/register-chat'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
@@ -43,6 +44,11 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterChatRoute = RegisterChatRouteImport.update({
+  id: '/register-chat',
+  path: '/register-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SavedRoute = SavedRouteImport.update({
   id: '/saved',
   path: '/saved',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
   '/register': typeof RegisterRoute
+  '/register-chat': typeof RegisterChatRoute
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
   '/register': typeof RegisterRoute
+  '/register-chat': typeof RegisterChatRoute
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/network': typeof NetworkRoute
   '/register': typeof RegisterRoute
+  '/register-chat': typeof RegisterChatRoute
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/network'
     | '/register'
+    | '/register-chat'
     | '/saved'
     | '/search'
     | '/profile/$id'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/network'
     | '/register'
+    | '/register-chat'
     | '/saved'
     | '/search'
     | '/profile/$id'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/network'
     | '/register'
+    | '/register-chat'
     | '/saved'
     | '/search'
     | '/profile/$id'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   NetworkRoute: typeof NetworkRoute
   RegisterRoute: typeof RegisterRoute
+  RegisterChatRoute: typeof RegisterChatRoute
   SavedRoute: typeof SavedRoute
   SearchRoute: typeof SearchRoute
   ProfileIdRoute: typeof ProfileIdRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register-chat': {
+      id: '/register-chat'
+      path: '/register-chat'
+      fullPath: '/register-chat'
+      preLoaderRoute: typeof RegisterChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/saved': {
       id: '/saved'
       path: '/saved'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   NetworkRoute: NetworkRoute,
   RegisterRoute: RegisterRoute,
+  RegisterChatRoute: RegisterChatRoute,
   SavedRoute: SavedRoute,
   SearchRoute: SearchRoute,
   ProfileIdRoute: ProfileIdRoute,

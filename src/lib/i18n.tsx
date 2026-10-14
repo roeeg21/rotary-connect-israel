@@ -127,6 +127,22 @@ const dict: Dict = {
   yearsOld: { he: "שנים", en: "years old" },
   rotaryMember: { he: "חבר רוטרי", en: "Rotary member" },
   noFamilyMembers: { he: "אין בני משפחה רשומים", en: "No family members registered" },
+  // Chatbot registration
+  smartRegistration: { he: "הרשמה חכמה", en: "Smart Registration" },
+  chatRegistration: { he: "הרשמה בשיחה", en: "Chat Registration" },
+  startOver: { he: "התחלה מחדש", en: "Start over" },
+  preferTraditional: { he: "מעדיפים טופס מסורתי?", en: "Prefer a traditional form?" },
+  clickHere: { he: "לחצו כאן", en: "Click here" },
+  typingPlaceholder: { he: "הקלידו את התשובה שלכם...", en: "Type your answer..." },
+  enterToSend: { he: "Enter לשליחה · Shift+Enter לשורה חדשה", en: "Enter to send · Shift+Enter for new line" },
+  send: { he: "שליחה", en: "Send" },
+  letsStart: { he: "בוא נתחיל!", en: "Let's start!" },
+  tellMeMore: { he: "ספר לי עוד", en: "Tell me more" },
+  yes: { he: "כן", en: "Yes" },
+  no: { he: "לא", en: "No" },
+  skip: { he: "דלג", en: "Skip" },
+  showSummary: { he: "הצג סיכום", en: "Show summary" },
+  finishRegistration: { he: "סיים הרשמה", en: "Finish registration" },
 };
 
 type Ctx = {
