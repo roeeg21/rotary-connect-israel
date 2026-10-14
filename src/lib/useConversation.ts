@@ -384,10 +384,10 @@ async function simulateResponse(
           ? `נא להזין כתובת דוא"ל תקינה (לדוגמה: name@example.com)`
           : `Please enter a valid email address (e.g., name@example.com)`;
       } else if (emailMatch || profile.email) {
-        // Move to next stage
+        // Move to personal stage - ask for date of birth
         responseText = lang === "he"
-          ? `תודה! עכשיו נמשיך לפרטים נוספים.\n\nבאיזו עיר אתה גר/ה?`
-          : `Thank you! Now let's continue with more details.\n\nWhich city do you live in?`;
+          ? `תודה! מה תאריך הלידה שלך? (לדוגמה: 15/03/1980)`
+          : `Thank you! What's your date of birth? (e.g., 03/15/1980)`;
         nextStage = "personal";
       } else {
         responseText = lang === "he"
@@ -396,21 +396,50 @@ async function simulateResponse(
       }
       break;
 
-    case "personal":
-      if (!profile.city) {
+    case "personal": {
+      // Track personal details: DOB, city, phone
+      const personalMeta = (state as any)._personalMeta || {};
+
+      if (!personalMeta.dob) {
+        // Store date of birth
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { _personalMeta: { ...personalMeta, dob: content.trim() } } as any,
+        });
+        responseText = lang === "he"
+          ? `תודה! באיזו עיר אתה גר/ה?`
+          : `Thanks! Which city do you live in?`;
+      } else if (!profile.city) {
         updatedProfile.city = content.trim();
         responseText = lang === "he"
-          ? `${updatedProfile.city}, מצוין! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
-          : `${updatedProfile.city}, great! Now tell me about your profession - what do you do?`;
-        nextStage = "professional";
+          ? `${updatedProfile.city}, מצוין! מה מספר הטלפון שלך?`
+          : `${updatedProfile.city}, great! What's your phone number?`;
+      } else if (!profile.phone) {
+        // Extract and store phone number
+        const phoneMatch = content.match(/[\d\-\s\+\(\)]{7,}/);
+        if (phoneMatch) {
+          updatedProfile.phone = phoneMatch[0].replace(/[\s\-\(\)]/g, "");
+          responseText = lang === "he"
+            ? `תודה! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
+            : `Thanks! Now tell me about your profession - what do you do?`;
+          nextStage = "professional";
+        } else {
+          responseText = lang === "he"
+            ? `נא להזין מספר טלפון תקין (לדוגמה: 054-1234567)`
+            : `Please enter a valid phone number (e.g., 054-1234567)`;
+        }
       } else {
         responseText = lang === "he"
-          ? `באיזו עיר אתה גר/ה?`
-          : `Which city do you live in?`;
+          ? `מה תאריך הלידה שלך?`
+          : `What's your date of birth?`;
       }
       break;
+    }
 
-    case "professional":
+    case "professional": {
+      // Track professional details: profession, workplace, education, hobbies
+      const profMeta = (state as any)._profMeta || {};
+
       if (!profile.profession) {
         updatedProfile.profession = content.trim();
         responseText = lang === "he"
@@ -419,32 +448,77 @@ async function simulateResponse(
       } else if (!profile.workplace) {
         updatedProfile.workplace = content.trim();
         responseText = lang === "he"
-          ? `מעולה! עכשיו נשאל לגבי הרוטרי.\n\nלאיזה מועדון רוטרי אתה שייך/ת?`
-          : `Great! Now let's ask about Rotary.\n\nWhich Rotary club do you belong to?`;
+          ? `מעולה! מה ההשכלה שלך? (תואר, מוסד לימודים)`
+          : `Great! What's your education? (degree, institution)`;
+      } else if (!profMeta.education) {
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { _profMeta: { ...profMeta, education: content.trim() } } as any,
+        });
+        responseText = lang === "he"
+          ? `יפה! יש לך תחביבים שתרצה לשתף?`
+          : `Nice! Do you have any hobbies you'd like to share?`;
+        nextQuickReplies = [
+          { id: "skip", label: lang === "he" ? "דלג" : "Skip", value: "skip" },
+        ];
+      } else if (!profMeta.hobbies && !/skip|דלג/i.test(content)) {
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { _profMeta: { ...profMeta, hobbies: content.trim() } } as any,
+        });
+        responseText = lang === "he"
+          ? `עכשיו נשאל לגבי הרוטרי.\n\nלאיזה מועדון רוטרי אתה שייך/ת?`
+          : `Now let's ask about Rotary.\n\nWhich Rotary club do you belong to?`;
         nextStage = "community";
       } else {
+        // Skipped hobbies
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: { _profMeta: { ...profMeta, hobbies: "" } } as any,
+        });
         responseText = lang === "he"
-          ? `ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
-          : `Tell me about your profession - what do you do?`;
+          ? `עכשיו נשאל לגבי הרוטרי.\n\nלאיזה מועדון רוטרי אתה שייך/ת?`
+          : `Now let's ask about Rotary.\n\nWhich Rotary club do you belong to?`;
+        nextStage = "community";
       }
       break;
+    }
 
-    case "community":
+    case "community": {
+      // Track community details: club, join year
+      const communityMeta = (state as any)._communityMeta || {};
+
       if (!state.customClub && !state.clubId) {
         dispatch({
           type: "UPDATE_STATE",
-          payload: { customClub: content.trim() },
+          payload: { customClub: content.trim(), _communityMeta: { ...communityMeta } } as any,
         });
         responseText = lang === "he"
-          ? `${content.trim()}, נפלא!\n\nהאם תרצה להוסיף את בן או בת הזוג שלך לפרופיל המשפחתי?`
-          : `${content.trim()}, wonderful!\n\nWould you like to add your spouse or partner to your family profile?`;
-        nextStage = "spouse_intro";
-        nextQuickReplies = [
-          { id: "yes", label: lang === "he" ? "כן" : "Yes", value: "yes" },
-          { id: "no", label: lang === "he" ? "לא, תודה" : "No, thanks", value: "no" },
-        ];
+          ? `${content.trim()}, נפלא! באיזו שנה הצטרפת לרוטרי?`
+          : `${content.trim()}, wonderful! What year did you join Rotary?`;
+      } else if (!state.joinYear) {
+        const yearMatch = content.match(/\d{4}/);
+        if (yearMatch) {
+          dispatch({
+            type: "UPDATE_STATE",
+            payload: { joinYear: yearMatch[0] },
+          });
+          responseText = lang === "he"
+            ? `מעולה! האם תרצה להוסיף את בן או בת הזוג שלך לפרופיל המשפחתי?`
+            : `Great! Would you like to add your spouse or partner to your family profile?`;
+          nextStage = "spouse_intro";
+          nextQuickReplies = [
+            { id: "yes", label: lang === "he" ? "כן" : "Yes", value: "yes" },
+            { id: "no", label: lang === "he" ? "לא, תודה" : "No, thanks", value: "no" },
+          ];
+        } else {
+          responseText = lang === "he"
+            ? `נא להזין שנה תקינה (לדוגמה: 2015)`
+            : `Please enter a valid year (e.g., 2015)`;
+        }
       }
       break;
+    }
 
     case "spouse_intro":
       if (/כן|yes|בטח|sure/i.test(content)) {
@@ -487,8 +561,18 @@ async function simulateResponse(
           },
         });
         responseText = lang === "he"
-          ? `מעולה! האם יש לך ילדים בוגרים שתרצה לכלול?`
-          : `Great! Do you have adult children you'd like to include?`;
+          ? `היכן ${state.spouse.firstName} עובד/ת?`
+          : `Where does ${state.spouse.firstName} work?`;
+      } else if (!state.spouse?.workplace) {
+        dispatch({
+          type: "UPDATE_STATE",
+          payload: {
+            spouse: { ...state.spouse, workplace: content.trim() },
+          },
+        });
+        responseText = lang === "he"
+          ? `מעולה! האם יש לך ילדים בוגרים (מעל גיל 28) שתרצה לכלול?`
+          : `Great! Do you have adult children (over 28) you'd like to include?`;
         nextStage = "children_intro";
         nextQuickReplies = [
           { id: "yes", label: lang === "he" ? "כן" : "Yes", value: "yes" },
