@@ -12,6 +12,7 @@ import {
   createMessage,
   getNextStage,
 } from "./conversation";
+import { generateId } from "./utils";
 
 // Action types
 type ConversationAction =
@@ -113,7 +114,7 @@ export function useConversation(options: UseConversationOptions = {}) {
 
   // Initialize state
   const [reducerState, dispatch] = useReducer(conversationReducer, {
-    state: createInitialState(crypto.randomUUID(), language),
+    state: createInitialState(generateId(), language),
     messages: [],
     quickReplies: [],
     isLoading: false,
@@ -287,7 +288,7 @@ export function useConversation(options: UseConversationOptions = {}) {
     dispatch({
       type: "RESET",
       payload: {
-        state: createInitialState(crypto.randomUUID(), language),
+        state: createInitialState(generateId(), language),
         message: welcomeMessage,
         quickReplies: welcomeQuickReplies,
       },

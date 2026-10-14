@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ChatResponse, ConversationState } from "./conversation";
 import { processUserMessage } from "./ai-service.server";
 import { saveConversationSession, getConversationSession } from "./chat.server";
+import { generateId } from "./utils";
 
 // Zod schema for conversation state validation
 const conversationStateSchema = z.object({
@@ -71,7 +72,7 @@ export const processMessage = createServerFn({
       return {
         messages: [
           {
-            id: crypto.randomUUID(),
+            id: generateId(),
             role: "assistant" as const,
             content:
               state.language === "he"

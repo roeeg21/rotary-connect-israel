@@ -99,7 +99,7 @@ function RegisterChatPage() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background" dir={dir}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background" dir={dir} style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
       {/* Header - fixed at top */}
       <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">

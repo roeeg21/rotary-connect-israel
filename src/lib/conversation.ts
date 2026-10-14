@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Child, Job, Person } from "./user-registration";
+import { generateId } from "./utils";
 
 // Message types for the chat interface
 export type MessageRole = "user" | "assistant" | "system";
@@ -183,7 +184,7 @@ export function createMessage(
   quickReplies?: QuickReply[],
 ): ChatMessage {
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     role,
     content,
     timestamp: Date.now(),
