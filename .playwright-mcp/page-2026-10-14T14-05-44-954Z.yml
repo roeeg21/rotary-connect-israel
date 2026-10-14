@@ -1,0 +1,63 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Rotary Connect Israel" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]:
+            - img "Rotary" [ref=e8]
+            - generic [ref=e38]:
+              - generic [ref=e39]: Rotary Connect
+              - generic [ref=e40]: Israel · District 2490
+        - navigation [ref=e41]:
+          - link "חיפוש" [ref=e42] [cursor=pointer]:
+            - /url: /
+          - link "הרשת" [ref=e47] [cursor=pointer]:
+            - /url: /network
+          - link "שמורים" [ref=e52] [cursor=pointer]:
+            - /url: /saved
+          - link "אני" [ref=e56] [cursor=pointer]:
+            - /url: /me
+        - generic [ref=e61]:
+          - group "Language" [ref=e62]:
+            - button "עב" [pressed] [ref=e63]
+            - button "EN" [ref=e64]
+          - generic [ref=e65]:
+            - link "כניסה" [ref=e66] [cursor=pointer]:
+              - /url: /login
+            - link "הרשמה" [ref=e67] [cursor=pointer]:
+              - /url: /register
+    - main [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e71]:
+          - button "חזרה" [ref=e72] [cursor=pointer]
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - img "Rotary" [ref=e76]
+              - generic [ref=e106]:
+                - generic [ref=e107]: Rotary Connect
+                - generic [ref=e108]: Israel · District 2490
+            - generic [ref=e109]: הרשמה חכמה
+          - generic [ref=e110]:
+            - button "החלפת שפה" [ref=e111] [cursor=pointer]
+            - button "התחלה מחדש" [ref=e112] [cursor=pointer]
+        - generic [ref=e116]:
+          - generic [ref=e117]: ברוכים הבאים
+          - generic [ref=e118]: 0%
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - textbox "הקלידו את התשובה שלכם..." [ref=e128]
+            - button "שליחה" [disabled] [ref=e129]
+          - paragraph [ref=e132]: Enter לשליחה · Shift+Enter לשורה חדשה
+        - paragraph [ref=e134]:
+          - text: מעדיפים טופס מסורתי?
+          - button "לחצו כאן" [ref=e135]
+    - contentinfo [ref=e136]:
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - img "Rotary" [ref=e140]
+          - generic [ref=e170]:
+            - paragraph [ref=e171]: מנחם גץ, נגיד רוטרי ישראל, 2027-2028
+            - paragraph [ref=e172]: רוטרי ישראל · מחוז 2490
+        - paragraph [ref=e173]: © 2026 Rotary Connect Israel
+  - region "Notifications alt+T"

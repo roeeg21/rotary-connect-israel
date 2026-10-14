@@ -127,6 +127,14 @@ export function useConversation(options: UseConversationOptions = {}) {
         if (savedState && savedState.status !== "completed") {
           dispatch({ type: "SET_STATE", payload: savedState });
           dispatch({ type: "ADD_MESSAGES", payload: savedMessages || [] });
+
+          // Restore quick replies from the last assistant message
+          const lastAssistantMessage = [...(savedMessages || [])].reverse().find(
+            (m: ChatMessage) => m.role === "assistant"
+          );
+          if (lastAssistantMessage?.quickReplies?.length) {
+            dispatch({ type: "SET_QUICK_REPLIES", payload: lastAssistantMessage.quickReplies });
+          }
           return;
         }
       }

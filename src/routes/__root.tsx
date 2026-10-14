@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -126,22 +127,35 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Routes that use their own full-screen layout (no header/footer/bottom nav)
+const FULLSCREEN_ROUTES = ["/register"];
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+
+  // Check if current route should be full-screen (no layout chrome)
+  const isFullscreen = FULLSCREEN_ROUTES.some(route => location.pathname.startsWith(route));
 
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <AppStateProvider>
-          <div className="flex min-h-screen flex-col">
-            <AppHeader />
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <main className="flex-1 pb-20 md:pb-0">
-              <Outlet />
-            </main>
-            <SiteFooter />
-            <BottomNav />
-          </div>
+          {isFullscreen ? (
+            // Full-screen layout for chat/registration pages
+            <Outlet />
+          ) : (
+            // Standard layout with header/footer
+            <div className="flex min-h-screen flex-col">
+              <AppHeader />
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <main className="flex-1 pb-20 md:pb-0">
+                <Outlet />
+              </main>
+              <SiteFooter />
+              <BottomNav />
+            </div>
+          )}
           <Toaster position="top-center" />
         </AppStateProvider>
       </I18nProvider>
