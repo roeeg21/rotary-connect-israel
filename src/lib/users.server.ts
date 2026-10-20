@@ -9,6 +9,32 @@ type RegistrationDocument = RegistrationInput & {
   updatedAt: Date;
 };
 
+// Social auth types
+export type SocialProvider = "apple" | "google";
+
+export type SocialAuthInput = {
+  provider: SocialProvider;
+  providerId: string; // Apple/Google user ID
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  photo?: string;
+};
+
+type SocialAuthDocument = {
+  provider: SocialProvider;
+  providerId: string;
+  email: string;
+  emailLower: string;
+  firstName?: string;
+  lastName?: string;
+  photo?: string;
+  club?: string;
+  onboarded: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type MongoCache = {
   collectionKey?: string;
   clientPromise?: Promise<MongoClient>;
@@ -105,5 +131,99 @@ export async function upsertUserRegistration(input: RegistrationInput) {
       },
     },
     { upsert: true },
+  );
+}
+
+// Social authentication functions
+export async function findOrCreateSocialUser(input: SocialAuthInput): Promise<SocialAuthDocument> {
+  const { uri, dbName } = getMongoConfig();
+  const client = await getMongoClient(uri);
+  const collection = client.db(dbName).collection<SocialAuthDocument>("users");
+
+  const now = new Date();
+  const emailLower = input.email.toLowerCase();
+
+  // First try to find by provider + providerId
+  let user = await collection.findOne({
+    provider: input.provider,
+    providerId: input.providerId,
+  });
+
+  if (user) {
+    // Update existing user
+    await collection.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          email: input.email,
+          emailLower,
+          firstName: input.firstName || user.firstName,
+          lastName: input.lastName || user.lastName,
+          photo: input.photo || user.photo,
+          updatedAt: now,
+        },
+      }
+    );
+    return { ...user, updatedAt: now };
+  }
+
+  // Check if email exists with different provider
+  const existingByEmail = await collection.findOne({ emailLower });
+  if (existingByEmail) {
+    // Link this provider to existing account
+    await collection.updateOne(
+      { _id: existingByEmail._id },
+      {
+        $set: {
+          provider: input.provider,
+          providerId: input.providerId,
+          photo: input.photo || existingByEmail.photo,
+          updatedAt: now,
+        },
+      }
+    );
+    return { ...existingByEmail, provider: input.provider, providerId: input.providerId, updatedAt: now };
+  }
+
+  // Create new user
+  const newUser: SocialAuthDocument = {
+    provider: input.provider,
+    providerId: input.providerId,
+    email: input.email,
+    emailLower,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    photo: input.photo,
+    onboarded: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await collection.insertOne(newUser);
+  return newUser;
+}
+
+export async function getUserByEmail(email: string): Promise<SocialAuthDocument | null> {
+  const { uri, dbName } = getMongoConfig();
+  const client = await getMongoClient(uri);
+  const collection = client.db(dbName).collection<SocialAuthDocument>("users");
+
+  return collection.findOne({ emailLower: email.toLowerCase() });
+}
+
+export async function updateUserOnboarding(email: string, club: string): Promise<void> {
+  const { uri, dbName } = getMongoConfig();
+  const client = await getMongoClient(uri);
+  const collection = client.db(dbName).collection<SocialAuthDocument>("users");
+
+  await collection.updateOne(
+    { emailLower: email.toLowerCase() },
+    {
+      $set: {
+        club,
+        onboarded: true,
+        updatedAt: new Date(),
+      },
+    }
   );
 }
