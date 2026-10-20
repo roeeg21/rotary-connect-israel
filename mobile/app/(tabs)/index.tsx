@@ -5,11 +5,12 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Image,
+  StyleSheet,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Search, ChevronRight, ChevronLeft } from "lucide-react-native";
@@ -17,15 +18,17 @@ import { Search, ChevronRight, ChevronLeft } from "lucide-react-native";
 import { useAppStore, useRecentSearches } from "@/lib/store/app";
 import { isRTL } from "@/lib/i18n";
 
-// Rotary brand colors
+// iOS-style colors
 const COLORS = {
-  primary: "#003366",
-  gold: "#C4A052",
-  background: "#FAFAF8",
-  text: "#1A1A1A",
-  muted: "#737373",
-  border: "#E5E5E3",
-  card: "#FFFFFF",
+  primary: "#007AFF",
+  secondary: "#5856D6",
+  background: "#F2F2F7",
+  secondaryBackground: "#FFFFFF",
+  label: "#000000",
+  secondaryLabel: "#3C3C43",
+  tertiaryLabel: "#8E8E93",
+  separator: "rgba(60, 60, 67, 0.12)",
+  fill: "rgba(120, 120, 128, 0.12)",
 };
 
 // Example search suggestions
@@ -66,322 +69,431 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
+    <View style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          keyboardShouldPersistTaps="handled"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          {/* Header */}
-          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-            {/* Logo */}
-            <View
-              style={{
-                flexDirection: rtl ? "row-reverse" : "row",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <Image
-                source={require("@/assets/images/app_logo.png")}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  marginEnd: 12,
-                }}
-                resizeMode="contain"
-              />
-              <View>
-                <Text style={{ fontSize: 18, fontWeight: "700", color: COLORS.text }}>
-                  {t("appName")}
-                </Text>
-                <Text style={{ fontSize: 12, color: COLORS.muted }}>
-                  Israel · District 2490
-                </Text>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              {/* Logo */}
+              <View
+                style={[
+                  styles.logoContainer,
+                  { flexDirection: rtl ? "row-reverse" : "row" },
+                ]}
+              >
+                <Image
+                  source={require("@/assets/images/app_logo.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+                <View>
+                  <Text style={styles.appName}>{t("appName")}</Text>
+                  <Text style={styles.subtitle}>Israel · District 2490</Text>
+                </View>
+              </View>
+
+              {/* Large Title - iOS style */}
+              <Text
+                style={[
+                  styles.largeTitle,
+                  { textAlign: rtl ? "right" : "left" },
+                ]}
+              >
+                {t("homeQuestion")}
+              </Text>
+            </View>
+
+            {/* Search Input - iOS style */}
+            <View style={styles.searchSection}>
+              <View style={styles.searchContainer}>
+                <Search size={18} color={COLORS.tertiaryLabel} />
+                <TextInput
+                  style={[
+                    styles.searchInput,
+                    { textAlign: rtl ? "right" : "left" },
+                  ]}
+                  placeholder={t("searchPlaceholder")}
+                  placeholderTextColor={COLORS.tertiaryLabel}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
               </View>
             </View>
 
-            {/* Tagline */}
-            <Text
-              style={{
-                fontSize: 28,
-                fontWeight: "700",
-                color: COLORS.text,
-                marginTop: 24,
-                marginBottom: 8,
-                textAlign: rtl ? "right" : "left",
-              }}
-            >
-              {t("homeQuestion")}
-            </Text>
-          </View>
-
-          {/* Search Input */}
-          <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
-            <View
-              style={{
-                flexDirection: rtl ? "row-reverse" : "row",
-                alignItems: "center",
-                backgroundColor: COLORS.card,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                paddingHorizontal: 16,
-                height: 52,
-              }}
-            >
-              <Search size={20} color={COLORS.muted} />
-              <TextInput
-                style={{
-                  flex: 1,
-                  marginHorizontal: 12,
-                  fontSize: 16,
-                  color: COLORS.text,
-                  textAlign: rtl ? "right" : "left",
-                }}
-                placeholder={t("searchPlaceholder")}
-                placeholderTextColor={COLORS.muted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onSubmitEditing={handleSearch}
-                returnKeyType="search"
-              />
-            </View>
-          </View>
-
-          {/* Search Suggestions */}
-          <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-            <Text
-              style={{
-                fontSize: 13,
-                color: COLORS.muted,
-                marginBottom: 12,
-                textAlign: rtl ? "right" : "left",
-              }}
-            >
-              {t("try")}:
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {SEARCH_SUGGESTIONS.map((suggestion, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => handleSuggestionPress(suggestion)}
-                  style={{
-                    backgroundColor: COLORS.card,
-                    borderRadius: 20,
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                  }}
-                >
-                  <Text style={{ color: COLORS.text, fontSize: 14 }}>
-                    {language === "he" ? suggestion.he : suggestion.en}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Recent Searches */}
-          {recentSearches.length > 0 && (
-            <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
+            {/* Search Suggestions - Pills */}
+            <View style={styles.suggestionsSection}>
               <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: COLORS.text,
-                  marginBottom: 12,
-                  textAlign: rtl ? "right" : "left",
-                }}
+                style={[
+                  styles.sectionLabel,
+                  { textAlign: rtl ? "right" : "left" },
+                ]}
               >
-                {t("recentSearches")}
+                {t("try")}
               </Text>
-              <View style={{ gap: 8 }}>
-                {recentSearches.map((query, index) => (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionsContainer}
+              >
+                {SEARCH_SUGGESTIONS.map((suggestion, index) => (
                   <TouchableOpacity
                     key={index}
-                    onPress={() => handleRecentSearchPress(query)}
-                    style={{
-                      flexDirection: rtl ? "row-reverse" : "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      backgroundColor: COLORS.card,
-                      borderRadius: 12,
-                      padding: 16,
-                      borderWidth: 1,
-                      borderColor: COLORS.border,
-                    }}
+                    onPress={() => handleSuggestionPress(suggestion)}
+                    style={styles.suggestionPill}
+                    activeOpacity={0.7}
                   >
-                    <View
-                      style={{
-                        flexDirection: rtl ? "row-reverse" : "row",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Search size={18} color={COLORS.muted} />
-                      <Text
-                        style={{
-                          fontSize: 15,
-                          color: COLORS.text,
-                          marginStart: 12,
-                        }}
-                      >
-                        {query}
-                      </Text>
-                    </View>
-                    <ChevronIcon size={18} color={COLORS.muted} />
+                    <Text style={styles.suggestionText}>
+                      {language === "he" ? suggestion.he : suggestion.en}
+                    </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             </View>
-          )}
 
-          {/* New to Network */}
-          <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: COLORS.text,
-                marginBottom: 12,
-                textAlign: rtl ? "right" : "left",
-              }}
-            >
-              {t("newToNetwork")}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
-            >
-              {/* Placeholder cards - will be populated with real data */}
-              {[1, 2, 3].map((i) => (
-                <View
-                  key={i}
-                  style={{
-                    width: 160,
-                    backgroundColor: COLORS.card,
-                    borderRadius: 12,
-                    padding: 16,
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                  }}
+            {/* Recent Searches - iOS List style */}
+            {recentSearches.length > 0 && (
+              <View style={styles.section}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { textAlign: rtl ? "right" : "left" },
+                  ]}
                 >
-                  <View
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: `${COLORS.primary}20`,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginBottom: 12,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: COLORS.primary,
-                        fontWeight: "bold",
-                        fontSize: 18,
-                      }}
+                  {t("recentSearches")}
+                </Text>
+                <View style={styles.listContainer}>
+                  {recentSearches.map((query, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleRecentSearchPress(query)}
+                      style={[
+                        styles.listItem,
+                        { flexDirection: rtl ? "row-reverse" : "row" },
+                        index === recentSearches.length - 1 && styles.listItemLast,
+                      ]}
+                      activeOpacity={0.6}
                     >
-                      {["ד", "מ", "א"][i - 1]}
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: COLORS.text,
-                      marginBottom: 4,
-                      textAlign: rtl ? "right" : "left",
-                    }}
+                      <View
+                        style={[
+                          styles.listItemContent,
+                          { flexDirection: rtl ? "row-reverse" : "row" },
+                        ]}
+                      >
+                        <View style={styles.searchIconContainer}>
+                          <Search size={16} color={COLORS.tertiaryLabel} />
+                        </View>
+                        <Text style={styles.listItemText}>{query}</Text>
+                      </View>
+                      <ChevronIcon size={16} color={COLORS.tertiaryLabel} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* New to Network - iOS Cards */}
+            <View style={styles.section}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { textAlign: rtl ? "right" : "left" },
+                ]}
+              >
+                {t("newToNetwork")}
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cardsContainer}
+              >
+                {[1, 2, 3].map((i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.memberCard}
+                    activeOpacity={0.8}
                   >
-                    {["דני כהן", "מיכל לוי", "אבי גולן"][i - 1]}
+                    <View style={styles.memberAvatar}>
+                      <Text style={styles.memberAvatarText}>
+                        {["ד", "מ", "א"][i - 1]}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.memberName,
+                        { textAlign: rtl ? "right" : "left" },
+                      ]}
+                    >
+                      {["דני כהן", "מיכל לוי", "אבי גולן"][i - 1]}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.memberProfession,
+                        { textAlign: rtl ? "right" : "left" },
+                      ]}
+                    >
+                      {["עורך דין", "יזמית", "אדריכל"][i - 1]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <View
+                style={[
+                  styles.footerContent,
+                  { flexDirection: rtl ? "row-reverse" : "row" },
+                ]}
+              >
+                <Image
+                  source={require("@/assets/images/app_logo.png")}
+                  style={styles.footerLogo}
+                  resizeMode="contain"
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.footerGovernor,
+                      { textAlign: rtl ? "right" : "left" },
+                    ]}
+                  >
+                    {t("footerGovernor")}
                   </Text>
                   <Text
-                    style={{
-                      fontSize: 12,
-                      color: COLORS.muted,
-                      textAlign: rtl ? "right" : "left",
-                    }}
+                    style={[
+                      styles.footerDistrict,
+                      { textAlign: rtl ? "right" : "left" },
+                    ]}
                   >
-                    {["עורך דין", "יזמית", "אדריכל"][i - 1]}
+                    {t("footerDistrict")}
                   </Text>
                 </View>
-              ))}
-            </ScrollView>
-          </View>
-
-        </ScrollView>
-
-        {/* Footer - Fixed at bottom */}
-        <View
-          style={{
-            paddingTop: 16,
-            paddingBottom: 8,
-            paddingHorizontal: 20,
-            borderTopWidth: 1,
-            borderTopColor: COLORS.border,
-            backgroundColor: COLORS.background,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: rtl ? "row-reverse" : "row",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 8,
-            }}
-          >
-            <Image
-              source={require("@/assets/images/app_logo.png")}
-              style={{
-                width: 28,
-                height: 28,
-                marginEnd: 10,
-              }}
-              resizeMode="contain"
-            />
-            <View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: COLORS.text,
-                  textAlign: rtl ? "right" : "left",
-                }}
-              >
-                {t("footerGovernor")}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 10,
-                  color: COLORS.muted,
-                  textAlign: rtl ? "right" : "left",
-                }}
-              >
-                {t("footerDistrict")}
+              </View>
+              <Text style={styles.copyright}>
+                © {new Date().getFullYear()} Rotary Connect Israel
               </Text>
             </View>
-          </View>
-          <Text
-            style={{
-              fontSize: 10,
-              color: COLORS.muted,
-              textAlign: "center",
-            }}
-          >
-            © {new Date().getFullYear()} Rotary Connect Israel
-          </Text>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    marginEnd: 12,
+  },
+  appName: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: COLORS.label,
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+    marginTop: 1,
+  },
+  largeTitle: {
+    fontSize: 34,
+    fontWeight: "700",
+    color: COLORS.label,
+    letterSpacing: 0.37,
+    lineHeight: 41,
+  },
+  searchSection: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.fill,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchInput: {
+    flex: 1,
+    marginHorizontal: 8,
+    fontSize: 17,
+    color: COLORS.label,
+  },
+  suggestionsSection: {
+    marginTop: 20,
+    paddingStart: 20,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: -0.08,
+  },
+  suggestionsContainer: {
+    gap: 8,
+    paddingEnd: 20,
+  },
+  suggestionPill: {
+    backgroundColor: COLORS.secondaryBackground,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  suggestionText: {
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  section: {
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: COLORS.label,
+    marginBottom: 12,
+    letterSpacing: 0.35,
+  },
+  listContainer: {
+    backgroundColor: COLORS.secondaryBackground,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  listItem: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.separator,
+  },
+  listItemLast: {
+    borderBottomWidth: 0,
+  },
+  listItemContent: {
+    alignItems: "center",
+    flex: 1,
+  },
+  searchIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: COLORS.fill,
+    alignItems: "center",
+    justifyContent: "center",
+    marginEnd: 12,
+  },
+  listItemText: {
+    fontSize: 17,
+    color: COLORS.label,
+    flex: 1,
+  },
+  cardsContainer: {
+    gap: 12,
+  },
+  memberCard: {
+    width: 150,
+    backgroundColor: COLORS.secondaryBackground,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  memberAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.fill,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  memberAvatarText: {
+    color: COLORS.primary,
+    fontWeight: "600",
+    fontSize: 20,
+  },
+  memberName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.label,
+    marginBottom: 4,
+  },
+  memberProfession: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+  },
+  footer: {
+    marginTop: 48,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.separator,
+    alignItems: "center",
+  },
+  footerContent: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  footerLogo: {
+    width: 32,
+    height: 32,
+    marginEnd: 12,
+  },
+  footerGovernor: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.secondaryLabel,
+  },
+  footerDistrict: {
+    fontSize: 11,
+    color: COLORS.tertiaryLabel,
+    marginTop: 2,
+  },
+  copyright: {
+    fontSize: 11,
+    color: COLORS.tertiaryLabel,
+  },
+});

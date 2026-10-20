@@ -125,14 +125,6 @@ function RootLayoutNav() {
                 headerBackTitle: "",
               }}
             />
-            <Stack.Screen
-              name="register/form"
-              options={{
-                headerShown: true,
-                title: "",
-                headerBackTitle: "",
-              }}
-            />
           </Stack>
         </View>
       </I18nextProvider>

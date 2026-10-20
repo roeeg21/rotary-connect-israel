@@ -1,13 +1,15 @@
 import { Tabs } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { Platform, StyleSheet } from "react-native";
+import { BlurView } from "expo-blur";
 import { Search, Globe, Bookmark, User } from "lucide-react-native";
 
-// Rotary brand colors
+// iOS-style colors
 const COLORS = {
-  primary: "#003366",
-  inactive: "#737373",
-  background: "#FFFFFF",
+  primary: "#007AFF", // iOS blue
+  inactive: "#8E8E93", // iOS gray
+  background: "rgba(255, 255, 255, 0.85)",
+  tabBarBorder: "rgba(0, 0, 0, 0.1)",
 };
 
 export default function TabLayout() {
@@ -20,15 +22,30 @@ export default function TabLayout() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.inactive,
         tabBarStyle: {
-          backgroundColor: COLORS.background,
-          borderTopColor: "#E5E5E3",
-          paddingBottom: Platform.OS === "ios" ? 20 : 8,
+          position: "absolute",
+          backgroundColor: Platform.OS === "ios" ? "transparent" : COLORS.background,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: COLORS.tabBarBorder,
+          paddingBottom: Platform.OS === "ios" ? 28 : 8,
           paddingTop: 8,
           height: Platform.OS === "ios" ? 88 : 64,
+          elevation: 0,
         },
+        tabBarBackground: () =>
+          Platform.OS === "ios" ? (
+            <BlurView
+              intensity={100}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+          ) : null,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: "500",
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
       }}
     >
@@ -36,8 +53,12 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t("navSearch"),
-          tabBarIcon: ({ color, size }) => (
-            <Search color={color} size={size} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <Search
+              color={color}
+              size={24}
+              strokeWidth={focused ? 2.5 : 1.5}
+            />
           ),
         }}
       />
@@ -45,8 +66,12 @@ export default function TabLayout() {
         name="network"
         options={{
           title: t("navNetwork"),
-          tabBarIcon: ({ color, size }) => (
-            <Globe color={color} size={size} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <Globe
+              color={color}
+              size={24}
+              strokeWidth={focused ? 2.5 : 1.5}
+            />
           ),
         }}
       />
@@ -54,8 +79,12 @@ export default function TabLayout() {
         name="saved"
         options={{
           title: t("navSaved"),
-          tabBarIcon: ({ color, size }) => (
-            <Bookmark color={color} size={size} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <Bookmark
+              color={color}
+              size={24}
+              strokeWidth={focused ? 2.5 : 1.5}
+            />
           ),
         }}
       />
@@ -63,8 +92,12 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: t("navMe"),
-          tabBarIcon: ({ color, size }) => (
-            <User color={color} size={size} strokeWidth={2} />
+          tabBarIcon: ({ color, focused }) => (
+            <User
+              color={color}
+              size={24}
+              strokeWidth={focused ? 2.5 : 1.5}
+            />
           ),
         }}
       />
