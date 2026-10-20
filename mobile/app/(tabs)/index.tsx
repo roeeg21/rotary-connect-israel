@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -85,21 +86,16 @@ export default function HomeScreen() {
                 marginBottom: 8,
               }}
             >
-              <View
+              <Image
+                source={require("@/assets/images/app_logo.png")}
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: COLORS.primary,
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
                   marginEnd: 12,
                 }}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "bold", fontSize: 18 }}>
-                  R
-                </Text>
-              </View>
+                resizeMode="contain"
+              />
               <View>
                 <Text style={{ fontSize: 18, fontWeight: "700", color: COLORS.text }}>
                   {t("appName")}
@@ -322,7 +318,69 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
           </View>
+
         </ScrollView>
+
+        {/* Footer - Fixed at bottom */}
+        <View
+          style={{
+            paddingTop: 16,
+            paddingBottom: 8,
+            paddingHorizontal: 20,
+            borderTopWidth: 1,
+            borderTopColor: COLORS.border,
+            backgroundColor: COLORS.background,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: rtl ? "row-reverse" : "row",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Image
+              source={require("@/assets/images/app_logo.png")}
+              style={{
+                width: 28,
+                height: 28,
+                marginEnd: 10,
+              }}
+              resizeMode="contain"
+            />
+            <View>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: COLORS.text,
+                  textAlign: rtl ? "right" : "left",
+                }}
+              >
+                {t("footerGovernor")}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: COLORS.muted,
+                  textAlign: rtl ? "right" : "left",
+                }}
+              >
+                {t("footerDistrict")}
+              </Text>
+            </View>
+          </View>
+          <Text
+            style={{
+              fontSize: 10,
+              color: COLORS.muted,
+              textAlign: "center",
+            }}
+          >
+            © {new Date().getFullYear()} Rotary Connect Israel
+          </Text>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

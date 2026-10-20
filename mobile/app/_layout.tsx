@@ -10,6 +10,7 @@ import "react-native-reanimated";
 
 import i18n, { loadSavedLanguage, isRTL } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store/app";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import "../global.css";
 
 export {
@@ -73,7 +74,7 @@ export default function RootLayout() {
   }, [fontsLoaded, i18nReady]);
 
   if (!fontsLoaded || !i18nReady) {
-    return null;
+    return <LoadingScreen />;
   }
 
   return <RootLayoutNav />;
