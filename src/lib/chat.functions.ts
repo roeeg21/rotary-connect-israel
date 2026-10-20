@@ -4,21 +4,41 @@ import type { ChatResponse, ConversationState } from "./conversation";
 import { processUserMessage } from "./ai-service.server";
 import { saveConversationSession, getConversationSession } from "./chat.server";
 import { generateId } from "./utils";
+import {
+  applyChatResponse,
+  STAGE_ORDER,
+  extractedProfileSchema,
+  extractedSpouseSchema,
+  extractedChildSchema,
+} from "./conversation";
+import { contactInfoSchema } from "./user-registration";
+import { ageFromBirthDate, MIN_CHILD_AGE, toRegistrationInput } from "./registration-interview";
 
 // Zod schema for conversation state validation
 const conversationStateSchema = z.object({
   sessionId: z.string(),
   language: z.enum(["he", "en"]),
-  currentStage: z.string(),
-  completedStages: z.array(z.string()),
+  currentStage: z.enum(STAGE_ORDER),
+  completedStages: z.array(z.enum(STAGE_ORDER)),
   pendingQuestions: z.array(z.string()),
-  profile: z.record(z.unknown()),
-  spouse: z.record(z.unknown()).optional(),
-  children: z.array(z.record(z.unknown())),
+  profile: extractedProfileSchema,
+  contactInfo: contactInfoSchema.default({}),
+  spouse: extractedSpouseSchema.optional(),
+  children: z.array(extractedChildSchema).transform((children) =>
+    children.filter((child) => {
+      const age = child.dateOfBirth ? ageFromBirthDate(child.dateOfBirth) : child.age;
+      return age !== undefined && age >= MIN_CHILD_AGE;
+    }),
+  ),
   networkingPreferences: z.record(z.unknown()),
   clubId: z.string().optional(),
   customClub: z.string().optional(),
   joinYear: z.string().optional(),
+  rotaryJoinDate: z.string().optional(),
+  hasSpouse: z.boolean().optional(),
+  hasChildren: z.boolean().optional(),
+  hasEligibleChildren: z.boolean().optional(),
+  skippedFields: z.array(z.string()).default([]),
   consent: z.record(z.boolean()),
   status: z.enum(["in_progress", "review", "completed", "abandoned"]),
   createdAt: z.number(),
@@ -26,9 +46,26 @@ const conversationStateSchema = z.object({
   lastMessageAt: z.number(),
 });
 
+const chatMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+  timestamp: z.number(),
+  quickReplies: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        value: z.string(),
+      }),
+    )
+    .optional(),
+});
+
 const processMessageInputSchema = z.object({
   message: z.string().min(1).max(5000),
   state: conversationStateSchema,
+  conversationHistory: z.array(chatMessageSchema).max(400).optional(),
 });
 
 /**
@@ -37,31 +74,29 @@ const processMessageInputSchema = z.object({
 export const processMessage = createServerFn({
   method: "POST",
 })
-  .validator((data: { message: string; state: ConversationState }) =>
-    processMessageInputSchema.parse(data)
+  .validator(
+    (data: {
+      message: string;
+      state: ConversationState;
+      conversationHistory?: Array<{ id: string; role: string; content: string; timestamp: number }>;
+    }) => processMessageInputSchema.parse(data),
   )
-  .handler(async ({ data }) => {
-    const { message, state } = data;
+  .handler(async ({ data }): Promise<ChatResponse> => {
+    const { message, state, conversationHistory } = data;
 
     try {
-      // Process the message using AI service
-      const response = await processUserMessage(message, state as ConversationState);
+      // Process the message using AI service (with conversation history for context)
+      const response = await processUserMessage(
+        message,
+        state as ConversationState,
+        conversationHistory as import("./conversation").ChatMessage[] | undefined,
+      );
 
       // Save updated session state to database
-      const updatedState = {
-        ...state,
-        ...response.state,
-        currentStage: response.nextStage || state.currentStage,
-        completedStages: response.nextStage
-          ? [...state.completedStages, state.currentStage]
-          : state.completedStages,
-        updatedAt: Date.now(),
-        lastMessageAt: Date.now(),
-      } as ConversationState;
-
-      // Persist to database (fire and forget for speed)
-      saveConversationSession(updatedState).catch((err) =>
-        console.error("Failed to save session:", err)
+      const updatedState = applyChatResponse(state as ConversationState, response);
+      const messages = [...(conversationHistory ?? []), ...response.messages];
+      saveConversationSession(updatedState, messages).catch((err) =>
+        console.error("Failed to save session:", err),
       );
 
       return response;
@@ -124,9 +159,7 @@ const completeRegistrationInputSchema = z.object({
 export const completeRegistration = createServerFn({
   method: "POST",
 })
-  .validator((data: { state: ConversationState }) =>
-    completeRegistrationInputSchema.parse(data)
-  )
+  .validator((data: { state: ConversationState }) => completeRegistrationInputSchema.parse(data))
   .handler(async ({ data }) => {
     const { state } = data;
 
@@ -134,73 +167,16 @@ export const completeRegistration = createServerFn({
       // Import the existing registration function
       const { upsertUserRegistration } = await import("./users.server");
 
-      // Transform conversation state to registration format
-      const registrationData = {
-        firstName: state.profile.firstName || "",
-        lastName: state.profile.lastName || "",
-        email: state.profile.email || "",
-        dob: "", // Would need to be collected or generated
-        clubId: state.clubId || "",
-        customClub: state.customClub || "",
-        joinYear: state.joinYear || "",
-        socialProfiles: {
-          facebook: "",
-          instagram: "",
-          linkedin: "",
-        },
-        me: {
-          gender: "",
-          age: "",
-          education: "",
-          jobs: state.profile.workplace
-            ? [
-                {
-                  employer: state.profile.workplace,
-                  role: state.profile.jobTitle || state.profile.profession || "",
-                  from: "",
-                  to: "",
-                  description: "",
-                },
-              ]
-            : [],
-          boards: "",
-          hobbies: state.profile.interests?.join(", ") || "",
-        },
-        married: state.spouse ? ("yes" as const) : ("no" as const),
-        spouse: state.spouse
-          ? {
-              gender: "",
-              age: "",
-              education: "",
-              jobs: state.spouse.workplace
-                ? [
-                    {
-                      employer: state.spouse.workplace,
-                      role: state.spouse.jobTitle || state.spouse.profession || "",
-                      from: "",
-                      to: "",
-                      description: "",
-                    },
-                  ]
-                : [],
-              boards: "",
-              hobbies: "",
-            }
-          : null,
-        children: state.children.map((child) => ({
-          name: child.name || "",
-          dob: "", // Would need birth date
-          status: child.profession || child.education || "",
-        })),
-        onboarded: true as const,
-      };
+      if (state.currentStage !== "completed")
+        throw new Error("Please confirm the profile summary first");
+      const registrationData = toRegistrationInput(state as ConversationState);
 
       // Save to database
       await upsertUserRegistration(registrationData);
 
       // Mark session as completed
       await saveConversationSession({
-        ...state,
+        ...(state as ConversationState),
         status: "completed",
         updatedAt: Date.now(),
       });

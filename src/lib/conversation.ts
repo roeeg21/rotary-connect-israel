@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { Child, Job, Person } from "./user-registration";
 import { generateId } from "./utils";
 
 // Message types for the chat interface
@@ -10,8 +9,8 @@ export interface ChatMessage {
   role: MessageRole;
   content: string;
   timestamp: number;
-  quickReplies?: QuickReply[];
-  metadata?: Record<string, unknown>;
+  quickReplies?: QuickReply[] | undefined;
+  metadata?: Record<string, string | number | boolean | null>;
 }
 
 export interface QuickReply {
@@ -45,45 +44,9 @@ export interface ExtractedContactInfo {
 }
 
 // Extracted profile data structure
-export interface ExtractedProfile {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  city?: string;
-  country?: string;
-  photoUrl?: string;
-  shortBio?: string;
-  profession?: string;
-  jobTitle?: string;
-  workplace?: string;
-  industry?: string;
-  experience?: string;
-  skills?: string[];
-  expertise?: string[];
-  interests?: string[];
-  goals?: string;
-}
-
-export interface ExtractedSpouse {
-  firstName?: string;
-  lastName?: string;
-  profession?: string;
-  jobTitle?: string;
-  workplace?: string;
-  industry?: string;
-  city?: string;
-  bio?: string;
-}
-
-export interface ExtractedChild {
-  name?: string;
-  age?: number;
-  profession?: string;
-  workplace?: string;
-  education?: string;
-  city?: string;
-}
+export type ExtractedProfile = z.infer<typeof extractedProfileSchema>;
+export type ExtractedSpouse = z.infer<typeof extractedSpouseSchema>;
+export type ExtractedChild = z.infer<typeof extractedChildSchema>;
 
 export interface NetworkingPreferences {
   opportunities?: string[];
@@ -112,6 +75,11 @@ export interface ConversationState {
   clubId?: string;
   customClub?: string;
   joinYear?: string;
+  rotaryJoinDate?: string;
+  hasSpouse?: boolean;
+  hasChildren?: boolean;
+  hasEligibleChildren?: boolean;
+  skippedFields?: string[];
 
   // Consent tracking
   consent: {
@@ -135,7 +103,35 @@ export interface ChatResponse {
   nextStage?: RegistrationStage;
 }
 
+export function applyChatResponse(
+  state: ConversationState,
+  response: ChatResponse,
+): ConversationState {
+  const nextStage = response.nextStage ?? state.currentStage;
+  return {
+    ...state,
+    ...response.state,
+    currentStage: nextStage,
+    completedStages:
+      nextStage !== state.currentStage
+        ? [...new Set([...state.completedStages, state.currentStage])]
+        : state.completedStages,
+    updatedAt: Date.now(),
+    lastMessageAt: Date.now(),
+  };
+}
+
 // Zod schema for validation
+export const educationRecordSchema = z.object({
+  degree: z.string().optional(),
+  fieldOfStudy: z.string().optional(),
+  institution: z.string().optional(),
+  graduationYear: z.string().optional(),
+  specialization: z.string().optional(),
+  postGraduationActivities: z.string().optional(),
+  completedDuringMilitaryService: z.boolean().optional(),
+});
+
 export const extractedProfileSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
@@ -154,10 +150,57 @@ export const extractedProfileSchema = z.object({
   expertise: z.array(z.string()).optional(),
   interests: z.array(z.string()).optional(),
   goals: z.string().optional(),
+  age: z.number().int().min(18).max(130).optional(),
+  dateOfBirth: z.string().optional(),
+  hasHigherEducation: z.boolean().optional(),
+  education: z.string().optional(),
+  educationHistory: z.array(educationRecordSchema).optional(),
+  militaryService: z.boolean().optional(),
+  militaryDischargeRank: z.string().optional(),
+  boards: z.string().optional(),
+  hobbies: z.array(z.string()).optional(),
+  helpWith: z.array(z.string()).optional(),
+  languages: z.array(z.string()).optional(),
 });
 
+export const extractedSpouseSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  age: z.number().int().min(18).max(130).optional(),
+  gender: z.string().optional(),
+  profession: z.string().optional(),
+  jobTitle: z.string().optional(),
+  workplace: z.string().optional(),
+  industry: z.string().optional(),
+  city: z.string().optional(),
+  bio: z.string().optional(),
+  education: z.string().optional(),
+  educationHistory: z.array(educationRecordSchema).optional(),
+});
+
+export const extractedChildSchema = z.object({
+  name: z.string().optional(),
+  age: z.number().int().min(0).max(130).optional(),
+  dateOfBirth: z.string().optional(),
+  profession: z.string().optional(),
+  workplace: z.string().optional(),
+  education: z.string().optional(),
+  institution: z.string().optional(),
+  graduationYear: z.string().optional(),
+  city: z.string().optional(),
+});
+
+export function getRegistrationGreeting(language: "he" | "en") {
+  return language === "he"
+    ? "שלום וברוכים הבאים לרוטרי קונקט ישראל!\n\nספרו לי קצת על עצמכם במילים שלכם: שם, גיל או תאריך לידה, השכלה, עיסוק, מועדון רוטרי ומתי הצטרפתם, האם יש בן או בת זוג, והאם יש ילדים בני 28 ומעלה. לגבי ילדים צעירים יותר אין צורך למסור פרטים.\n\nאפשר לכתוב הכול בהודעה אחת. אקרא את מה ששיתפתם ואשאל רק על פרטים שחסרים. אפשר לדלג על שאלות שאינן חובה."
+    : "Welcome to Rotary Connect Israel!\n\nTell me about yourself in your own words: your name, age or date of birth, education, work, Rotary club and when you joined, partner status, and whether you have children aged 28 or older. Please leave out details of younger children.\n\nYou can share everything in one message. I'll read what you've shared and follow up only on missing details. Optional questions can be skipped.";
+}
+
 // Helper to create initial state
-export function createInitialState(sessionId: string, language: "he" | "en" = "he"): ConversationState {
+export function createInitialState(
+  sessionId: string,
+  language: "he" | "en" = "he",
+): ConversationState {
   const now = Date.now();
   return {
     sessionId,
@@ -193,7 +236,7 @@ export function createMessage(
 }
 
 // Stage progression logic
-export const STAGE_ORDER: RegistrationStage[] = [
+export const STAGE_ORDER = [
   "welcome",
   "language",
   "account",
@@ -207,14 +250,14 @@ export const STAGE_ORDER: RegistrationStage[] = [
   "networking",
   "review",
   "completed",
-];
+] as const;
 
 export function getNextStage(current: RegistrationStage): RegistrationStage | null {
   const currentIndex = STAGE_ORDER.indexOf(current);
   if (currentIndex === -1 || currentIndex === STAGE_ORDER.length - 1) {
     return null;
   }
-  return STAGE_ORDER[currentIndex + 1];
+  return STAGE_ORDER[currentIndex + 1] ?? null;
 }
 
 export function getPreviousStage(current: RegistrationStage): RegistrationStage | null {
@@ -222,7 +265,7 @@ export function getPreviousStage(current: RegistrationStage): RegistrationStage 
   if (currentIndex <= 0) {
     return null;
   }
-  return STAGE_ORDER[currentIndex - 1];
+  return STAGE_ORDER[currentIndex - 1] ?? null;
 }
 
 // Calculate completion percentage

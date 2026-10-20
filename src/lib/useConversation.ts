@@ -10,7 +10,8 @@ import {
   calculateProgress,
   createInitialState,
   createMessage,
-  getNextStage,
+  getRegistrationGreeting,
+  applyChatResponse,
 } from "./conversation";
 import { generateId } from "./utils";
 
@@ -25,7 +26,10 @@ type ConversationAction =
   | { type: "SET_STAGE"; payload: RegistrationStage }
   | { type: "SET_LANGUAGE"; payload: "he" | "en" }
   | { type: "SET_ERROR"; payload: string | null }
-  | { type: "RESET"; payload: { state: ConversationState; message: ChatMessage; quickReplies: QuickReply[] } };
+  | {
+      type: "RESET";
+      payload: { state: ConversationState; message: ChatMessage; quickReplies: QuickReply[] };
+    };
 
 interface ConversationReducerState {
   state: ConversationState;
@@ -39,7 +43,7 @@ const SESSION_STORAGE_KEY = "rotary-chat-session";
 
 function conversationReducer(
   state: ConversationReducerState,
-  action: ConversationAction
+  action: ConversationAction,
 ): ConversationReducerState {
   switch (action.type) {
     case "SET_STATE":
@@ -69,9 +73,10 @@ function conversationReducer(
         state: {
           ...state.state,
           currentStage: action.payload,
-          completedStages: state.state.currentStage !== action.payload
-            ? [...state.state.completedStages, state.state.currentStage]
-            : state.state.completedStages,
+          completedStages:
+            state.state.currentStage !== action.payload
+              ? [...state.state.completedStages, state.state.currentStage]
+              : state.state.completedStages,
           updatedAt: Date.now(),
         },
       };
@@ -103,13 +108,14 @@ interface UseConversationOptions {
   language?: "he" | "en";
   onComplete?: (state: ConversationState) => void;
   onError?: (error: Error) => void;
-  sendMessageFn?: (
+  sendMessageFn: (
     message: string,
-    state: ConversationState
+    state: ConversationState,
+    conversationHistory?: ChatMessage[],
   ) => Promise<ChatResponse>;
 }
 
-export function useConversation(options: UseConversationOptions = {}) {
+export function useConversation(options: UseConversationOptions) {
   const { language = "he", onComplete, onError, sendMessageFn } = options;
 
   // Initialize state
@@ -125,6 +131,8 @@ export function useConversation(options: UseConversationOptions = {}) {
 
   // Ref to track if we've initialized from storage
   const initialized = useRef(false);
+  const inFlight = useRef(false);
+  const requestVersion = useRef(0);
 
   // Load session from storage on mount
   useEffect(() => {
@@ -140,9 +148,9 @@ export function useConversation(options: UseConversationOptions = {}) {
           dispatch({ type: "ADD_MESSAGES", payload: savedMessages || [] });
 
           // Restore quick replies from the last assistant message
-          const lastAssistantMessage = [...(savedMessages || [])].reverse().find(
-            (m: ChatMessage) => m.role === "assistant"
-          );
+          const lastAssistantMessage = [...(savedMessages || [])]
+            .reverse()
+            .find((m: ChatMessage) => m.role === "assistant");
           if (lastAssistantMessage?.quickReplies?.length) {
             dispatch({ type: "SET_QUICK_REPLIES", payload: lastAssistantMessage.quickReplies });
           }
@@ -154,16 +162,7 @@ export function useConversation(options: UseConversationOptions = {}) {
     }
 
     // If no saved session, add welcome message
-    const welcomeMessage = createMessage(
-      "assistant",
-      language === "he"
-        ? "שלום! אני כאן כדי לעזור לך להצטרף לקהילת רוטרי קונקט ישראל. תוכל/י לשוחח איתי בשפה טבעית, ואני אדריך אותך לאורך כל התהליך.\n\nנתחיל?"
-        : "Hello! I'm here to help you join the Rotary Connect Israel community. You can chat with me naturally, and I'll guide you through the entire process.\n\nShall we begin?",
-      [
-        { id: "start", label: language === "he" ? "בוא נתחיל!" : "Let's start!", value: "start" },
-        { id: "info", label: language === "he" ? "ספר לי עוד" : "Tell me more", value: "info" },
-      ]
-    );
+    const welcomeMessage = createMessage("assistant", getRegistrationGreeting(language), []);
 
     dispatch({ type: "ADD_MESSAGE", payload: welcomeMessage });
     dispatch({
@@ -180,10 +179,7 @@ export function useConversation(options: UseConversationOptions = {}) {
     }
 
     try {
-      sessionStorage.setItem(
-        SESSION_STORAGE_KEY,
-        JSON.stringify({ state, messages })
-      );
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ state, messages }));
     } catch (e) {
       console.error("Failed to save session:", e);
     }
@@ -192,7 +188,9 @@ export function useConversation(options: UseConversationOptions = {}) {
   // Send message handler
   const sendMessage = useCallback(
     async (content: string) => {
-      if (isLoading) return;
+      if (inFlight.current || !content.trim()) return;
+      inFlight.current = true;
+      const version = requestVersion.current;
 
       // Add user message
       const userMessage = createMessage("user", content);
@@ -204,20 +202,18 @@ export function useConversation(options: UseConversationOptions = {}) {
       try {
         if (sendMessageFn) {
           // Use provided send function (for server integration)
-          const response = await sendMessageFn(content, state);
+          // Pass the full conversation history for AI context
+          const fullHistory = [...messages, userMessage];
+          const response = await sendMessageFn(content, state, fullHistory);
+          if (version !== requestVersion.current) return;
 
           // Process response
           if (response.messages.length > 0) {
             dispatch({ type: "ADD_MESSAGES", payload: response.messages });
           }
 
-          if (response.state) {
-            dispatch({ type: "UPDATE_STATE", payload: response.state });
-          }
-
-          if (response.nextStage) {
-            dispatch({ type: "SET_STAGE", payload: response.nextStage });
-          }
+          const updatedState = applyChatResponse(state, response);
+          dispatch({ type: "SET_STATE", payload: updatedState });
 
           // Set quick replies from last assistant message
           const lastMessage = response.messages[response.messages.length - 1];
@@ -227,13 +223,11 @@ export function useConversation(options: UseConversationOptions = {}) {
 
           // Check for completion
           if (response.nextStage === "completed") {
-            onComplete?.(state);
+            onComplete?.(updatedState);
           }
-        } else {
-          // Demo mode - simulate AI response
-          await simulateResponse(content, state, dispatch);
         }
       } catch (e) {
+        if (version !== requestVersion.current) return;
         const error = e instanceof Error ? e : new Error("Unknown error");
         dispatch({ type: "SET_ERROR", payload: error.message });
         onError?.(error);
@@ -243,14 +237,17 @@ export function useConversation(options: UseConversationOptions = {}) {
           "assistant",
           language === "he"
             ? "מצטער, משהו השתבש. נסה שוב בעוד רגע."
-            : "Sorry, something went wrong. Please try again in a moment."
+            : "Sorry, something went wrong. Please try again in a moment.",
         );
         dispatch({ type: "ADD_MESSAGE", payload: errorMessage });
       } finally {
-        dispatch({ type: "SET_LOADING", payload: false });
+        if (version === requestVersion.current) {
+          inFlight.current = false;
+          dispatch({ type: "SET_LOADING", payload: false });
+        }
       }
     },
-    [isLoading, state, sendMessageFn, onComplete, onError, language]
+    [messages, state, sendMessageFn, onComplete, onError, language],
   );
 
   // Quick reply handler
@@ -258,30 +255,45 @@ export function useConversation(options: UseConversationOptions = {}) {
     (reply: QuickReply) => {
       sendMessage(reply.value);
     },
-    [sendMessage]
+    [sendMessage],
   );
 
   // Language change handler
-  const setLanguage = useCallback((lang: "he" | "en") => {
-    dispatch({ type: "SET_LANGUAGE", payload: lang });
-  }, []);
+  const setLanguage = useCallback(
+    (lang: "he" | "en") => {
+      if (
+        state.currentStage === "welcome" &&
+        messages.length === 1 &&
+        messages[0]?.role === "assistant"
+      ) {
+        dispatch({
+          type: "RESET",
+          payload: {
+            state: { ...state, language: lang },
+            message: createMessage("assistant", getRegistrationGreeting(lang), []),
+            quickReplies: [],
+          },
+        });
+        return;
+      }
+      dispatch({ type: "SET_LANGUAGE", payload: lang });
+    },
+    [state, messages],
+  );
 
   // Reset conversation
   const reset = useCallback(() => {
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    requestVersion.current++;
+    inFlight.current = false;
 
     // Create fresh welcome message in current language
-    const welcomeQuickReplies: QuickReply[] = [
-      { id: "start", label: language === "he" ? "בוא נתחיל!" : "Let's start!", value: "start" },
-      { id: "info", label: language === "he" ? "ספר לי עוד" : "Tell me more", value: "info" },
-    ];
+    const welcomeQuickReplies: QuickReply[] = [];
 
     const welcomeMessage = createMessage(
       "assistant",
-      language === "he"
-        ? "שלום! אני כאן כדי לעזור לך להצטרף לקהילת רוטרי קונקט ישראל. תוכל/י לשוחח איתי בשפה טבעית, ואני אדריך אותך לאורך כל התהליך.\n\nנתחיל?"
-        : "Hello! I'm here to help you join the Rotary Connect Israel community. You can chat with me naturally, and I'll guide you through the entire process.\n\nShall we begin?",
-      welcomeQuickReplies
+      getRegistrationGreeting(language),
+      welcomeQuickReplies,
     );
 
     // Reset everything at once
@@ -313,372 +325,4 @@ export function useConversation(options: UseConversationOptions = {}) {
     setLanguage,
     reset,
   };
-}
-
-// Demo simulation function with proper state tracking
-async function simulateResponse(
-  content: string,
-  state: ConversationState,
-  dispatch: React.Dispatch<ConversationAction>
-) {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 400));
-
-  const lang = state.language;
-  const stage = state.currentStage;
-  const profile = state.profile;
-
-  let responseText = "";
-  let nextQuickReplies: QuickReply[] = [];
-  let nextStage: RegistrationStage = state.currentStage;
-  let updatedProfile = { ...profile };
-
-  // Extract email from content
-  const emailMatch = content.match(/[\w.-]+@[\w.-]+\.\w+/);
-  if (emailMatch) {
-    updatedProfile.email = emailMatch[0];
-  }
-
-  switch (stage) {
-    case "welcome":
-      if (content.toLowerCase().includes("start") || content.includes("נתחיל") || content.includes("כן")) {
-        responseText = lang === "he"
-          ? "מצוין! נתחיל עם כמה פרטים בסיסיים.\n\nמה השם הפרטי שלך?"
-          : "Great! Let's start with some basic details.\n\nWhat's your first name?";
-        nextStage = "account";
-      } else {
-        responseText = lang === "he"
-          ? "רוטרי קונקט ישראל היא פלטפורמה לרשת קשרים מקצועית של חברי רוטרי. בעזרת הצ'אט הזה נאסוף את הפרטים שלך ליצירת פרופיל.\n\nמוכנים להתחיל?"
-          : "Rotary Connect Israel is a professional networking platform for Rotary members. Through this chat, we'll collect your details to create a profile.\n\nReady to begin?";
-        nextQuickReplies = [
-          { id: "start", label: lang === "he" ? "בוא נתחיל!" : "Let's start!", value: "start" },
-        ];
-      }
-      break;
-
-    case "account":
-      // Determine what to ask next based on what we have
-      if (!profile.firstName) {
-        // This is the first answer - store as first name
-        updatedProfile.firstName = content.trim().split(/\s+/)[0];
-        const lastName = content.trim().split(/\s+/).slice(1).join(" ");
-        if (lastName) {
-          updatedProfile.lastName = lastName;
-        }
-
-        if (!updatedProfile.lastName) {
-          responseText = lang === "he"
-            ? `נעים מאוד, ${updatedProfile.firstName}! מה שם המשפחה שלך?`
-            : `Nice to meet you, ${updatedProfile.firstName}! What's your last name?`;
-        } else {
-          responseText = lang === "he"
-            ? `נעים מאוד, ${updatedProfile.firstName} ${updatedProfile.lastName}! מה כתובת הדוא"ל שלך?`
-            : `Nice to meet you, ${updatedProfile.firstName} ${updatedProfile.lastName}! What's your email address?`;
-        }
-      } else if (!profile.lastName) {
-        updatedProfile.lastName = content.trim();
-        responseText = lang === "he"
-          ? `מעולה! מה כתובת הדוא"ל שלך?`
-          : `Great! What's your email address?`;
-      } else if (!profile.email && !emailMatch) {
-        responseText = lang === "he"
-          ? `נא להזין כתובת דוא"ל תקינה (לדוגמה: name@example.com)`
-          : `Please enter a valid email address (e.g., name@example.com)`;
-      } else if (emailMatch || profile.email) {
-        // Move to personal stage - ask for date of birth
-        responseText = lang === "he"
-          ? `תודה! מה תאריך הלידה שלך? (לדוגמה: 15/03/1980)`
-          : `Thank you! What's your date of birth? (e.g., 03/15/1980)`;
-        nextStage = "personal";
-      } else {
-        responseText = lang === "he"
-          ? `מה כתובת הדוא"ל שלך?`
-          : `What's your email address?`;
-      }
-      break;
-
-    case "personal": {
-      // Track personal details: DOB, city, phone
-      const personalMeta = (state as any)._personalMeta || {};
-
-      if (!personalMeta.dob) {
-        // Store date of birth
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: { _personalMeta: { ...personalMeta, dob: content.trim() } } as any,
-        });
-        responseText = lang === "he"
-          ? `תודה! באיזו עיר אתה גר/ה?`
-          : `Thanks! Which city do you live in?`;
-      } else if (!profile.city) {
-        updatedProfile.city = content.trim();
-        responseText = lang === "he"
-          ? `${updatedProfile.city}, מצוין! מה מספר הטלפון שלך?`
-          : `${updatedProfile.city}, great! What's your phone number?`;
-      } else if (!profile.phone) {
-        // Extract and store phone number
-        const phoneMatch = content.match(/[\d\-\s\+\(\)]{7,}/);
-        if (phoneMatch) {
-          updatedProfile.phone = phoneMatch[0].replace(/[\s\-\(\)]/g, "");
-          responseText = lang === "he"
-            ? `תודה! עכשיו ספר/י לי על העיסוק המקצועי שלך - במה אתה עוסק/ת?`
-            : `Thanks! Now tell me about your profession - what do you do?`;
-          nextStage = "professional";
-        } else {
-          responseText = lang === "he"
-            ? `נא להזין מספר טלפון תקין (לדוגמה: 054-1234567)`
-            : `Please enter a valid phone number (e.g., 054-1234567)`;
-        }
-      } else {
-        responseText = lang === "he"
-          ? `מה תאריך הלידה שלך?`
-          : `What's your date of birth?`;
-      }
-      break;
-    }
-
-    case "professional": {
-      // Track professional details: profession, workplace, education, hobbies
-      const profMeta = (state as any)._profMeta || {};
-
-      if (!profile.profession) {
-        updatedProfile.profession = content.trim();
-        responseText = lang === "he"
-          ? `${updatedProfile.profession} - מעניין! באיזה ארגון או חברה אתה עובד/ת?`
-          : `${updatedProfile.profession} - interesting! Which organization or company do you work for?`;
-      } else if (!profile.workplace) {
-        updatedProfile.workplace = content.trim();
-        responseText = lang === "he"
-          ? `מעולה! מה ההשכלה שלך? (תואר, מוסד לימודים)`
-          : `Great! What's your education? (degree, institution)`;
-      } else if (!profMeta.education) {
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: { _profMeta: { ...profMeta, education: content.trim() } } as any,
-        });
-        responseText = lang === "he"
-          ? `יפה! יש לך תחביבים שתרצה לשתף?`
-          : `Nice! Do you have any hobbies you'd like to share?`;
-        nextQuickReplies = [
-          { id: "skip", label: lang === "he" ? "דלג" : "Skip", value: "skip" },
-        ];
-      } else if (!profMeta.hobbies && !/skip|דלג/i.test(content)) {
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: { _profMeta: { ...profMeta, hobbies: content.trim() } } as any,
-        });
-        responseText = lang === "he"
-          ? `עכשיו נשאל לגבי הרוטרי.\n\nלאיזה מועדון רוטרי אתה שייך/ת?`
-          : `Now let's ask about Rotary.\n\nWhich Rotary club do you belong to?`;
-        nextStage = "community";
-      } else {
-        // Skipped hobbies
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: { _profMeta: { ...profMeta, hobbies: "" } } as any,
-        });
-        responseText = lang === "he"
-          ? `עכשיו נשאל לגבי הרוטרי.\n\nלאיזה מועדון רוטרי אתה שייך/ת?`
-          : `Now let's ask about Rotary.\n\nWhich Rotary club do you belong to?`;
-        nextStage = "community";
-      }
-      break;
-    }
-
-    case "community": {
-      // Track community details: club, join year
-      const communityMeta = (state as any)._communityMeta || {};
-
-      if (!state.customClub && !state.clubId) {
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: { customClub: content.trim(), _communityMeta: { ...communityMeta } } as any,
-        });
-        responseText = lang === "he"
-          ? `${content.trim()}, נפלא! באיזו שנה הצטרפת לרוטרי?`
-          : `${content.trim()}, wonderful! What year did you join Rotary?`;
-      } else if (!state.joinYear) {
-        const yearMatch = content.match(/\d{4}/);
-        if (yearMatch) {
-          dispatch({
-            type: "UPDATE_STATE",
-            payload: { joinYear: yearMatch[0] },
-          });
-          responseText = lang === "he"
-            ? `מעולה! האם תרצה להוסיף את בן או בת הזוג שלך לפרופיל המשפחתי?`
-            : `Great! Would you like to add your spouse or partner to your family profile?`;
-          nextStage = "spouse_intro";
-          nextQuickReplies = [
-            { id: "yes", label: lang === "he" ? "כן" : "Yes", value: "yes" },
-            { id: "no", label: lang === "he" ? "לא, תודה" : "No, thanks", value: "no" },
-          ];
-        } else {
-          responseText = lang === "he"
-            ? `נא להזין שנה תקינה (לדוגמה: 2015)`
-            : `Please enter a valid year (e.g., 2015)`;
-        }
-      }
-      break;
-    }
-
-    case "spouse_intro":
-      if (/כן|yes|בטח|sure/i.test(content)) {
-        responseText = lang === "he"
-          ? `מה השם של בן/בת הזוג שלך?`
-          : `What's your spouse's name?`;
-        nextStage = "spouse_details";
-      } else {
-        responseText = lang === "he"
-          ? `בסדר! האם יש לך ילדים בוגרים (מעל גיל 28) שתרצה לכלול?`
-          : `Okay! Do you have adult children (over 28) you'd like to include?`;
-        nextStage = "children_intro";
-        nextQuickReplies = [
-          { id: "yes", label: lang === "he" ? "כן" : "Yes", value: "yes" },
-          { id: "no", label: lang === "he" ? "לא" : "No", value: "no" },
-        ];
-      }
-      break;
-
-    case "spouse_details":
-      if (!state.spouse?.firstName) {
-        const spouseName = content.trim().split(/\s+/);
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: {
-            spouse: {
-              firstName: spouseName[0],
-              lastName: spouseName.slice(1).join(" ") || profile.lastName,
-            },
-          },
-        });
-        responseText = lang === "he"
-          ? `נעים להכיר! במה ${spouseName[0]} עוסק/ת?`
-          : `Nice to meet them! What does ${spouseName[0]} do?`;
-      } else if (!state.spouse?.profession) {
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: {
-            spouse: { ...state.spouse, profession: content.trim() },
-          },
-        });
-        responseText = lang === "he"
-          ? `היכן ${state.spouse.firstName} עובד/ת?`
-          : `Where does ${state.spouse.firstName} work?`;
-      } else if (!state.spouse?.workplace) {
-        dispatch({
-          type: "UPDATE_STATE",
-          payload: {
-            spouse: { ...state.spouse, workplace: content.trim() },
-          },
-        });
-        responseText = lang === "he"
-          ? `מעולה! האם יש לך ילדים בוגרים (מעל גיל 28) שתרצה לכלול?`
-          : `Great! Do you have adult children (over 28) you'd like to include?`;
-        nextStage = "children_intro";
-        nextQuickReplies = [
-          { id: "yes", label: lang === "he" ? "כן" : "Yes", value: "yes" },
-          { id: "no", label: lang === "he" ? "לא" : "No", value: "no" },
-        ];
-      }
-      break;
-
-    case "children_intro":
-      if (/כן|yes/i.test(content)) {
-        responseText = lang === "he"
-          ? `ספר/י לי על הילד/ה - שם ומה הוא/היא עושה?`
-          : `Tell me about your child - name and what they do?`;
-        nextStage = "children_details";
-      } else {
-        responseText = lang === "he"
-          ? `מצוין! כמעט סיימנו.\n\nרוצה לעבור על הסיכום לפני שנסיים?`
-          : `Excellent! We're almost done.\n\nWould you like to review the summary before we finish?`;
-        nextStage = "review";
-        nextQuickReplies = [
-          { id: "review", label: lang === "he" ? "הצג סיכום" : "Show summary", value: "review" },
-          { id: "finish", label: lang === "he" ? "סיים" : "Finish", value: "finish" },
-        ];
-      }
-      break;
-
-    case "children_details":
-      // Store child info
-      const childInfo = content.trim();
-      dispatch({
-        type: "UPDATE_STATE",
-        payload: {
-          children: [...state.children, { name: childInfo }],
-        },
-      });
-      responseText = lang === "he"
-        ? `תודה! האם תרצה להוסיף עוד ילד/ה?`
-        : `Thank you! Would you like to add another child?`;
-      nextQuickReplies = [
-        { id: "yes", label: lang === "he" ? "כן, עוד אחד" : "Yes, another", value: "yes" },
-        { id: "no", label: lang === "he" ? "לא, סיימתי" : "No, I'm done", value: "done" },
-      ];
-
-      if (/לא|no|done|סיימתי/i.test(content)) {
-        responseText = lang === "he"
-          ? `מצוין! כמעט סיימנו. רוצה לעבור על הסיכום?`
-          : `Great! We're almost done. Want to review the summary?`;
-        nextStage = "review";
-        nextQuickReplies = [
-          { id: "review", label: lang === "he" ? "הצג סיכום" : "Show summary", value: "review" },
-          { id: "finish", label: lang === "he" ? "סיים" : "Finish", value: "finish" },
-        ];
-      }
-      break;
-
-    case "review":
-      if (/review|סיכום/i.test(content)) {
-        const summary = [
-          `**${lang === "he" ? "פרטים אישיים" : "Personal Details"}**`,
-          `${lang === "he" ? "שם" : "Name"}: ${updatedProfile.firstName || profile.firstName} ${updatedProfile.lastName || profile.lastName}`,
-          `${lang === "he" ? "דוא״ל" : "Email"}: ${updatedProfile.email || profile.email}`,
-          `${lang === "he" ? "עיר" : "City"}: ${updatedProfile.city || profile.city}`,
-          "",
-          `**${lang === "he" ? "מקצועי" : "Professional"}**`,
-          `${lang === "he" ? "מקצוע" : "Profession"}: ${updatedProfile.profession || profile.profession}`,
-          `${lang === "he" ? "מקום עבודה" : "Workplace"}: ${updatedProfile.workplace || profile.workplace}`,
-          "",
-          `**${lang === "he" ? "רוטרי" : "Rotary"}**`,
-          `${lang === "he" ? "מועדון" : "Club"}: ${state.customClub || state.clubId}`,
-        ].join("\n");
-
-        responseText = lang === "he"
-          ? `הנה הסיכום:\n\n${summary}\n\nהכל נראה טוב? לחץ "סיים" להשלמת ההרשמה.`
-          : `Here's the summary:\n\n${summary}\n\nDoes everything look good? Click "Finish" to complete registration.`;
-        nextQuickReplies = [
-          { id: "finish", label: lang === "he" ? "סיים הרשמה" : "Finish registration", value: "finish" },
-          { id: "edit", label: lang === "he" ? "עריכה" : "Edit", value: "edit" },
-        ];
-      } else if (/finish|סיים/i.test(content)) {
-        responseText = lang === "he"
-          ? `ההרשמה הושלמה בהצלחה! ברוכים הבאים לרוטרי קונקט ישראל. אתה מועבר לדף הבית...`
-          : `Registration completed successfully! Welcome to Rotary Connect Israel. Redirecting to home...`;
-        nextStage = "completed";
-      }
-      break;
-
-    default:
-      responseText = lang === "he"
-        ? "תודה! המשך לענות על השאלות כדי להשלים את ההרשמה."
-        : "Thank you! Continue answering questions to complete registration.";
-  }
-
-  // Update profile state
-  if (Object.keys(updatedProfile).some(k => updatedProfile[k as keyof typeof updatedProfile] !== profile[k as keyof typeof profile])) {
-    dispatch({
-      type: "UPDATE_STATE",
-      payload: { profile: updatedProfile },
-    });
-  }
-
-  const assistantMessage = createMessage("assistant", responseText, nextQuickReplies);
-  dispatch({ type: "ADD_MESSAGE", payload: assistantMessage });
-  dispatch({ type: "SET_QUICK_REPLIES", payload: nextQuickReplies });
-
-  if (nextStage !== state.currentStage) {
-    dispatch({ type: "SET_STAGE", payload: nextStage });
-  }
 }

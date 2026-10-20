@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { SlidersHorizontal, Sparkles, UserSearch, Users } from "lucide-react";
+import { Bot, SlidersHorizontal, Sparkles, UserSearch, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { SearchResultCard } from "@/components/SearchResultCard";
@@ -14,6 +14,7 @@ import {
   getSearchStats,
   type SearchResult,
 } from "@/lib/smart-search";
+import { useAISearch } from "@/lib/useAISearch";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -129,14 +130,34 @@ function SearchPage() {
   const facetOptions = useMemo(() => getSmartSearchFacets(), []);
   const stats = useMemo(() => getSearchStats(), []);
 
-  // Spelling suggestion
+  // AI-powered search
+  const {
+    results: aiResults,
+    isLoading: isSearching,
+    intent: searchIntent,
+    suggestedCorrections: aiCorrections,
+    isAIPowered,
+  } = useAISearch({
+    query: q,
+    limit: 100,
+    relationshipFilter,
+    locationFilter,
+    enabled: !blocked,
+  });
+
+  // Spelling suggestion (from AI or fallback)
   const spellingSuggestion = useMemo(() => {
+    // First check AI corrections
+    if (aiCorrections && aiCorrections.length > 0) {
+      return aiCorrections[0].suggested;
+    }
+    // Fallback to local spell check
     if (!q || q.length < 3) return null;
     const words = q.split(/\s+/);
     const suggestions = words.map((w) => suggestSpellingCorrection(w)).filter(Boolean);
     if (suggestions.length === 0) return null;
     return suggestions[0];
-  }, [q]);
+  }, [q, aiCorrections]);
 
   useEffect(() => {
     if (!q) return;
@@ -148,16 +169,13 @@ function SearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
+  // Apply additional industry filter on top of AI results
   const results = useMemo(() => {
     if (blocked) return [];
 
-    let filteredResults = smartSearch(q, {
-      relationshipFilter: relationshipFilter === "all" ? undefined : relationshipFilter,
-      locationFilter,
-      limit: 100,
-    });
+    let filteredResults = aiResults;
 
-    // Apply industry filter
+    // Apply industry filter if not already handled by AI
     if (industryFilter) {
       filteredResults = filteredResults.filter(
         (r) => r.industry?.en?.toLowerCase() === industryFilter.toLowerCase()
@@ -165,7 +183,7 @@ function SearchPage() {
     }
 
     return filteredResults;
-  }, [q, relationshipFilter, locationFilter, industryFilter, blocked]);
+  }, [aiResults, industryFilter, blocked]);
 
   const activeFiltersCount = [locationFilter, industryFilter].filter(Boolean).length +
     (relationshipFilter !== "all" ? 1 : 0);
@@ -284,11 +302,25 @@ function SearchPage() {
         {/* Results */}
         <div>
           <div className="mb-6 flex items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{blocked ? "—" : results.length}</span>{" "}
-              {t("results")}
-              {q && <span className="ms-1 font-medium text-foreground">· {q}</span>}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{blocked ? "—" : results.length}</span>{" "}
+                {t("results")}
+                {q && <span className="ms-1 font-medium text-foreground">· {q}</span>}
+              </p>
+              {isAIPowered && q && !isSearching && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  <Bot className="size-3" />
+                  AI
+                </span>
+              )}
+              {isSearching && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <span className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  {lang === "he" ? "מחפש..." : "Searching..."}
+                </span>
+              )}
+            </div>
 
             {/* Mobile Filters */}
             <Sheet>

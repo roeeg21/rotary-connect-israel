@@ -5,6 +5,7 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { loadEnv } from "vite";
 
 export default defineConfig({
   tanstackStart: {
@@ -13,6 +14,18 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    plugins: [
+      {
+        name: "claude-server-environment",
+        config(_config, { mode }) {
+          // Load local server secrets without putting them in Vite's client defines.
+          const env = loadEnv(mode, process.cwd(), "ANTHROPIC_");
+          for (const key of ["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", "ANTHROPIC_SEARCH_MODEL"]) {
+            if (!process.env[key] && env[key]) process.env[key] = env[key];
+          }
+        },
+      },
+    ],
     resolve: {
       alias: {
         "punycode/": "punycode",
