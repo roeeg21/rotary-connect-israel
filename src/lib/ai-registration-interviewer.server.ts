@@ -382,7 +382,14 @@ export async function processRegistrationMessage(
     } else {
       console.warn("[Registration] No updates extracted from user message:", userMessage.slice(0, 100));
     }
+    const stateBefore = JSON.stringify(state.profile);
     updated = applyInterviewUpdates(state, turn.updates);
+    const stateAfter = JSON.stringify(updated.profile);
+    if (stateBefore !== stateAfter) {
+      console.log("[Registration] Profile updated:", stateAfter);
+    } else if (turn.updates.length > 0) {
+      console.warn("[Registration] Updates extracted but profile unchanged. Updates:", turn.updates);
+    }
     updated = skipInterviewQuestions(updated, turn.skippedFields);
   }
 

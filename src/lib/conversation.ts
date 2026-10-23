@@ -133,9 +133,47 @@ export function applyChatResponse(
   response: ChatResponse,
 ): ConversationState {
   const nextStage = response.nextStage ?? state.currentStage;
+  const responseState = response.state || {};
+
+  // Deep merge nested objects to prevent data loss
+  const mergedProfile = {
+    ...state.profile,
+    ...(responseState.profile || {}),
+    // Deep merge educationHistory if both exist
+    educationHistory: responseState.profile?.educationHistory
+      ? mergeArrayByIndex(state.profile?.educationHistory || [], responseState.profile.educationHistory)
+      : state.profile?.educationHistory,
+    // Deep merge military if both exist
+    military: responseState.profile?.military
+      ? { ...state.profile?.military, ...responseState.profile.military }
+      : state.profile?.military,
+  };
+
+  const mergedSpouse = responseState.spouse !== undefined
+    ? {
+        ...state.spouse,
+        ...responseState.spouse,
+        educationHistory: responseState.spouse?.educationHistory
+          ? mergeArrayByIndex(state.spouse?.educationHistory || [], responseState.spouse.educationHistory)
+          : state.spouse?.educationHistory,
+      }
+    : state.spouse;
+
+  const mergedChildren = responseState.children !== undefined
+    ? mergeArrayByIndex(state.children || [], responseState.children)
+    : state.children;
+
+  const mergedRotaryPositions = responseState.rotaryPositions !== undefined
+    ? mergeArrayByIndex(state.rotaryPositions || [], responseState.rotaryPositions)
+    : state.rotaryPositions;
+
   return {
     ...state,
-    ...response.state,
+    ...responseState,
+    profile: mergedProfile,
+    spouse: mergedSpouse,
+    children: mergedChildren,
+    rotaryPositions: mergedRotaryPositions,
     currentStage: nextStage,
     completedStages:
       nextStage !== state.currentStage
@@ -144,6 +182,17 @@ export function applyChatResponse(
     updatedAt: Date.now(),
     lastMessageAt: Date.now(),
   };
+}
+
+// Helper to merge arrays by index (for educationHistory, children, etc.)
+function mergeArrayByIndex<T extends object>(existing: T[], updates: T[]): T[] {
+  const result = [...existing];
+  updates.forEach((item, index) => {
+    if (item !== undefined && item !== null) {
+      result[index] = { ...result[index], ...item };
+    }
+  });
+  return result.filter(Boolean);
 }
 
 // Zod schema for validation
