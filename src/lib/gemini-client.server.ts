@@ -241,8 +241,8 @@ CRITICAL RULES FOR THE "updates" FIELD:
 function isKnownPath(str: string): boolean {
   // Must use end anchor ($) to avoid partial matches like "david.levy@gmail.com"
   const isPathPattern = /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*|\[\d+\])+$/;
-  const knownPrefixes = ["profile.", "spouse.", "children.", "spouse.educationHistory.", "profile.educationHistory."];
-  const knownRoots = ["customClub", "clubId", "joinYear", "hasSpouse", "hasChildren", "hasEligibleChildren", "rotaryJoinDate"];
+  const knownPrefixes = ["profile.", "spouse.", "children.", "spouse.educationHistory.", "profile.educationHistory.", "rotaryPositions."];
+  const knownRoots = ["customClub", "clubId", "joinYear", "hasSpouse", "hasChildren", "hasEligibleChildren", "rotaryJoinDate", "rotaryPositions"];
 
   return (
     isPathPattern.test(str) ||
@@ -354,7 +354,7 @@ function fixStringifiedObjects(obj: any): any {
           const path = obj[i] as string;
           if (!isKnownPath(path)) {
             // Allow if it starts with a known prefix even without full match
-            const startsWithKnown = ["profile", "spouse", "children", "customClub", "clubId", "joinYear", "hasSpouse", "hasChildren", "hasEligibleChildren", "rotaryJoinDate"].some(
+            const startsWithKnown = ["profile", "spouse", "children", "customClub", "clubId", "joinYear", "hasSpouse", "hasChildren", "hasEligibleChildren", "rotaryJoinDate", "rotaryPositions"].some(
               (p) => path === p || path.startsWith(p + ".")
             );
             if (!startsWithKnown) isAlternating = false;

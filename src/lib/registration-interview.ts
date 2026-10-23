@@ -254,13 +254,61 @@ export function eligibleChildren(state: ConversationState, today = new Date()) {
 }
 
 /** Apply only known fields; never let model output write arbitrary state properties. */
+/**
+ * Fix malformed updates from AI models that concatenate path:value pairs.
+ * Handles multiple malformed formats:
+ * 1. { path: "field1:val1", value: "field2:val2" }
+ * 2. { path: 'field1": "val1', value: 'field2": "val2' } (JSON-like with escaped quotes)
+ */
+function normalizeUpdates(updates: InterviewUpdate[]): InterviewUpdate[] {
+  const normalized: InterviewUpdate[] = [];
+  for (const { path, value } of updates) {
+    // Format 2: Check for JSON-like embedded quotes pattern: 'path": "value'
+    const jsonPattern = /^([a-zA-Z][a-zA-Z0-9._\[\]]*)":\s*"(.*)$/;
+    const pathJsonMatch = path.match(jsonPattern);
+    const valueJsonMatch = value.match(jsonPattern);
+
+    if (pathJsonMatch && valueJsonMatch) {
+      // Both have JSON-like format
+      const [, path1, value1] = pathJsonMatch;
+      const [, path2, value2] = valueJsonMatch;
+      if (path1 && value1) normalized.push({ path: path1, value: value1 });
+      if (path2 && value2) normalized.push({ path: path2, value: value2 });
+      continue;
+    }
+
+    // Format 1: Check for simple colon-separated path:value concatenation
+    const pathColonIdx = path.indexOf(":");
+    const valueColonIdx = value.indexOf(":");
+
+    if (pathColonIdx > 0 && valueColonIdx > 0 &&
+        path.includes(".") && value.includes(".") &&
+        !path.includes('"')) {
+      // Both path and value contain "path:value" format - extract them
+      const path1 = path.slice(0, pathColonIdx);
+      const value1 = path.slice(pathColonIdx + 1);
+      const path2 = value.slice(0, valueColonIdx);
+      const value2 = value.slice(valueColonIdx + 1);
+
+      if (path1 && value1) normalized.push({ path: path1, value: value1 });
+      if (path2 && value2) normalized.push({ path: path2, value: value2 });
+    } else {
+      // Normal update, keep as-is
+      normalized.push({ path, value });
+    }
+  }
+  return normalized;
+}
+
 export function applyInterviewUpdates(
   state: ConversationState,
   updates: InterviewUpdate[],
   today = new Date(),
 ): ConversationState {
   const next = structuredClone(state);
-  for (const { path, value } of updates) {
+  // Normalize malformed updates before processing
+  const normalizedUpdates = normalizeUpdates(updates);
+  for (const { path, value } of normalizedUpdates) {
     const normalizedPath = canonicalizeInterviewPath(path);
     const parts = normalizedPath.split(".");
     if (parts.some((segment) => ["__proto__", "prototype", "constructor"].includes(segment))) continue;
@@ -334,11 +382,7 @@ export function applyInterviewUpdates(
       continue;
     }
     // Handle rotaryPositions.INDEX.* fields
-    if (
-      root === "rotaryPositions" &&
-      parts.length === 3 &&
-      rotaryPositionFields.has(field)
-    ) {
+    if (root === "rotaryPositions" && parts.length === 3) {
       const index = Number(parts[1]);
       if (!Number.isInteger(index) || index < 0 || index > 9 || !/^\d+$/.test(parts[1]!)) continue;
       next.rotaryPositions ??= [];
