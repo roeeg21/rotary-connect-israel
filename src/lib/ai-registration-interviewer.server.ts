@@ -226,6 +226,8 @@ Return response, updates, skippedFields, questionFields in the required schema. 
 
 IMPORTANT for age extraction: When the user says their age in any format (e.g., "I'm 45", "בן 45", "45 שנים", "age 45", "45 years old"), extract ONLY the number as a string (e.g., "45").
 
+IMPORTANT for year fields (joinYear, graduationYear, fromYear, toYear, dischargeYear, retirementYear): Extract ONLY the 4-digit year as a string (e.g., "2015"). When user says "in 2015", "שנת 2015", "joined 2015", "2015 הצטרפתי", extract just "2015".
+
 Allowed paths:
 - profile.firstName, lastName, email, phone, city, country, age, dateOfBirth (accepts YYYY, YYYY-MM, or YYYY-MM-DD - use the format the user provides, e.g., "1980" if they just give a year), profession, jobTitle, workplace, industry, experience, employmentStatus (employed/self_employed/retired/seeking/other), retirementYear, shortBio, hasHigherEducation, education (a faithful short summary), boards, skills, expertise, interests, interestCategories (array of: business/technology/health/education/arts/sports/environment/community/finance/legal/real_estate/other), hobbies, volunteering, helpWith, languages, goals. Prefix ALL these with "profile.".
 - profile.educationHistory.INDEX.degree, level (high_school/associate/bachelor/master/doctorate/professional/other), fieldOfStudy, institution, graduationYear, specialization, postGraduationActivities, completedDuringMilitaryService. Every education record must have its own index. Collect all stated degrees and training, not just the first one.

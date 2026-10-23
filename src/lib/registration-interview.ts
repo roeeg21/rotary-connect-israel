@@ -139,6 +139,42 @@ export function normalizeBirthDate(value: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Extract a 4-digit year from various formats.
+ * Handles: "2015", "2015-06", "in 2015", "שנת 2015", "joined 2015", etc.
+ */
+export function normalizeYear(value: string): string | undefined {
+  const trimmed = value.trim();
+
+  // Already a 4-digit year
+  if (/^\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Date format YYYY-MM-DD or YYYY-MM - extract just the year
+  if (/^\d{4}-\d{2}(-\d{2})?$/.test(trimmed)) {
+    return trimmed.slice(0, 4);
+  }
+
+  // Extract 4-digit year from text like "in 2015", "שנת 2015", "joined 2015", "2015 הצטרפתי"
+  const yearMatch = trimmed.match(/\b(19\d{2}|20[0-2]\d)\b/);
+  if (yearMatch) {
+    return yearMatch[1];
+  }
+
+  return undefined;
+}
+
+// Fields that should be normalized as years
+const yearFields = new Set([
+  "joinYear",
+  "graduationYear",
+  "fromYear",
+  "toYear",
+  "dischargeYear",
+  "retirementYear",
+]);
+
 export function eligibleChildren(state: ConversationState, today = new Date()) {
   return state.children.filter((child) => {
     const age = child.dateOfBirth ? ageFromBirthDate(child.dateOfBirth, today) : child.age;
@@ -179,13 +215,18 @@ export function applyInterviewUpdates(
       const normalized = normalizeBirthDate(value);
       if (!normalized) continue;
       parsed = normalized;
+    } else if (yearFields.has(field)) {
+      // Normalize year fields: extracts YYYY from various formats
+      const normalized = normalizeYear(value);
+      if (!normalized) continue;
+      parsed = normalized;
+    } else if (field === "rotaryJoinDate") {
+      // Accepts YYYY, YYYY-MM, or YYYY-MM-DD
+      const normalized = normalizeBirthDate(value);
+      if (!normalized) continue;
+      parsed = normalized;
     }
     if (parts.length === 1 && stateFields.has(field)) {
-      if (
-        ["joinYear", "rotaryJoinDate"].includes(field) &&
-        !/^(19|20)\d{2}(?:-\d{2}(?:-\d{2})?)?$/.test(value)
-      )
-        continue;
       Object.assign(next, { [field]: parsed });
       continue;
     }
