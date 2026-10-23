@@ -251,6 +251,17 @@ Common extractions:
 
 NEVER return an empty updates array if the user provided ANY information. Parse Hebrew text carefully.
 
+CRITICAL - Handling "no" and negative answers:
+When user says "no", "לא", "I didn't", "אין", or any negative response to a question, you MUST still create an update:
+- For boolean fields: use "false"
+- For text fields: use the negative answer directly (e.g., "לא המשכתי", "אין", "לא שירתתי")
+
+EXAMPLES of negative answers:
+- User: "לא, לא למדתי במהלך השירות" → update: {path: "profile.educationHistory.0.completedDuringMilitaryService", value: "false"}
+- User: "לא המשכתי ללימודים נוספים" → update: {path: "profile.educationHistory.0.postGraduationActivities", value: "לא המשכתי"}
+- User: "אין התמחות" → update: {path: "profile.educationHistory.0.specialization", value: "אין"}
+- User: "לא שירתתי" → update: {path: "profile.military.framework", value: "none"}
+
 IMPORTANT for year fields (joinYear, graduationYear, fromYear, toYear, dischargeYear, retirementYear): Extract ONLY the 4-digit year as a string (e.g., "2015"). When user says "in 2015", "שנת 2015", "joined 2015", "2015 הצטרפתי", extract just "2015".
 
 Allowed paths:
