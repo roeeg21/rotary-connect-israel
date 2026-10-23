@@ -222,8 +222,17 @@ ${collected || "Nothing collected yet."}
 
 CRITICAL: Before asking any question, check the ALREADY COLLECTED DATA section above. NEVER ask for information that is already listed there. If the user already provided their name, email, profession, education, spouse info, or children info - DO NOT ask for it again.
 
-IMPORTANT - ONE QUESTION AT A TIME:
-Ask ONLY ONE question per response. Do not bundle multiple questions together. Keep the conversation natural and focused. After extracting the user's answer, ask the SINGLE most important missing question. The user can always provide additional information in their response.
+*** CRITICAL RULE - EXACTLY ONE QUESTION PER RESPONSE ***
+You MUST ask EXACTLY ONE question in your response. No exceptions.
+
+WRONG (multiple questions):
+"האם הייתה התמחות? האם המשכת ללימודים נוספים?"
+"מה שם בת הזוג? ומה המקצוע שלה?"
+
+CORRECT (single question):
+"האם הייתה התמחות במסגרת התואר?"
+
+Your response must contain ONLY ONE question mark. Ask the MOST important missing question first. The user will answer, then you ask the next question in your NEXT response.
 
 The opening invitation was: ${getRegistrationGreeting(state.language)}
 Extract all NEW details from the user's latest message. Then ask EXACTLY ONE question about information that is NOT already in the collected data above. Keep your reply short and natural. Do not repeat information already supplied or declined. Never invent values, birth dates, dates, institutions, degrees, military service, family status or relationships. An age is enough: never estimate a birth date from it. Dates may remain year-only or year-month when that is all the user remembers.
@@ -264,9 +273,11 @@ When user says "no", "לא", "I didn't", "אין", or any negative response to a
 
 EXAMPLES of negative answers:
 - User: "לא, לא למדתי במהלך השירות" → update: {path: "profile.educationHistory.0.completedDuringMilitaryService", value: "false"}
-- User: "לא המשכתי ללימודים נוספים" → update: {path: "profile.educationHistory.0.postGraduationActivities", value: "לא המשכתי"}
-- User: "אין התמחות" → update: {path: "profile.educationHistory.0.specialization", value: "אין"}
+- User: "לא המשכתי ללימודים נוספים" → skippedFields: ["profile.educationHistory.0.postGraduationActivities"]
+- User: "אין התמחות" or "לא, לא הייתה התמחות" or "לא" (to specialization) → skippedFields: ["profile.educationHistory.0.specialization"]
 - User: "לא שירתתי" → update: {path: "profile.military.framework", value: "none"}
+
+When user says "לא" to ANY optional question, add the field to skippedFields so it won't be asked again.
 
 IMPORTANT - Handling combined answers:
 When a user provides multiple pieces of information in one answer, extract ALL of them. For example:
@@ -520,6 +531,21 @@ export async function processRegistrationMessage(
         console.warn("[Registration] Updates extracted but profile unchanged. Updates:", turn.updates);
       }
       updated = skipInterviewQuestions(updated, turn.skippedFields);
+
+      // Code-level handling for negative answers when AI doesn't add skippedFields
+      // If user said "no" and AI returned no updates/skippedFields, skip the pending question
+      // Match messages that START with negative words (more flexible)
+      const negativePatterns = /^(לא,?\s*לא|לא|no|אין)/i;
+      const isNegativeAnswer = negativePatterns.test(userMessage.trim());
+      const noChanges = turn.updates.length === 0 && turn.skippedFields.length === 0;
+      const hasPendingOptional = state.pendingQuestions?.some(
+        (q) => !getInterviewQuestions(state).find((iq) => iq.key === q)?.required
+      );
+
+      if (isNegativeAnswer && noChanges && state.pendingQuestions?.length && hasPendingOptional) {
+        console.log("[Registration] Auto-skipping pending questions due to negative answer:", state.pendingQuestions);
+        updated = skipInterviewQuestions(updated, state.pendingQuestions);
+      }
     } catch (error) {
       console.warn("[Registration] AI extraction failed, using local fallback:", error);
       return createLocalFallbackResponse(userMessage, state);
@@ -543,8 +569,8 @@ export async function processRegistrationMessage(
   const requested = [...new Set(turn?.questionFields ?? [])]
     .map((key) => missing.find((question) => question.key === key))
     .filter((question) => question !== undefined)
-    .slice(0, 2);
-  const questions = requested.length ? requested : missing.slice(0, 2);
+    .slice(0, 1);
+  const questions = requested.length ? requested : missing.slice(0, 1);
   updated.pendingQuestions = questions.map((question) => question.key);
   updated.status = "in_progress";
   const stage = questions[0]!.stage;
@@ -558,12 +584,20 @@ export async function processRegistrationMessage(
       ]
     : [];
   // Invalid or resolved question paths must not cause repeated or unrelated questions.
-  const response =
+  // Ensure only ONE question is in the response (truncate at first question mark if multiple)
+  let response =
     requested.length && turn?.questionFields.length === requested.length && turn?.response.trim()
       ? turn.response
       : questions
           .map((question) => (state.language === "he" ? question.he : question.en))
           .join("\n");
+
+  // Post-process: If AI returned multiple questions (multiple ?), keep only up to the first question
+  const questionMarkCount = (response.match(/\?/g) || []).length;
+  if (questionMarkCount > 1) {
+    const firstQuestionEnd = response.indexOf("?") + 1;
+    response = response.slice(0, firstQuestionEnd).trim();
+  }
   return {
     messages: [createMessage("assistant", response, quickReplies)],
     state: updated,
