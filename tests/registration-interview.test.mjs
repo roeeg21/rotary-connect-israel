@@ -354,6 +354,24 @@ test("Claude failures leave collected state intact and give an honest retry/form
   }
 });
 
+test("canonical aliases for employer, role and discharge rank are stored and do not trigger follow-up questions", () => {
+  const state = applyInterviewUpdates(
+    initial(),
+    patch({
+      "profile.company": "Megatec",
+      "profile.role": "Owner",
+      "profile.militaryRank": "Major",
+    }),
+  );
+
+  assert.equal(state.profile.workplace, "Megatec");
+  assert.equal(state.profile.jobTitle, "Owner");
+  assert.equal(state.profile.military?.dischargeRank, "Major");
+  assert(!getInterviewQuestions(state).some((question) => question.key === "profile.workplace"));
+  assert(!getInterviewQuestions(state).some((question) => question.key === "profile.jobTitle"));
+  assert(!getInterviewQuestions(state).some((question) => question.key === "profile.military.dischargeRank"));
+});
+
 test("the actual SDK request carries conversation context and parses a mocked API reply", async () => {
   const { sendMessageWithSchema } = await server.ssrLoadModule("/src/lib/claude-client.server.ts");
   const previousKey = process.env.ANTHROPIC_API_KEY;

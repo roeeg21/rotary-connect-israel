@@ -175,6 +175,77 @@ const yearFields = new Set([
   "retirementYear",
 ]);
 
+const canonicalInterviewAliases: Record<string, string> = {
+  "profile.company": "profile.workplace",
+  "profile.employer": "profile.workplace",
+  "profile.role": "profile.jobTitle",
+  "profile.currentRole": "profile.jobTitle",
+  "profile.current_role": "profile.jobTitle",
+  "profile.militaryRank": "profile.military.dischargeRank",
+  "profile.militaryDischargeRank": "profile.military.dischargeRank",
+  "profile.dischargeRank": "profile.military.dischargeRank",
+  "profile.militaryRole": "profile.military.role",
+  "spouse.company": "spouse.workplace",
+  "spouse.employer": "spouse.workplace",
+  "spouse.role": "spouse.jobTitle",
+  "spouse.currentRole": "spouse.jobTitle",
+  "spouse.current_role": "spouse.jobTitle",
+};
+
+export function canonicalizeInterviewPath(path: string): string {
+  const cleaned = path.trim();
+  if (!cleaned) return cleaned;
+  return canonicalInterviewAliases[cleaned] ?? cleaned;
+}
+
+function isQuestionKeyKnown(state: ConversationState, key: string): boolean {
+  const resolved = canonicalizeInterviewPath(key);
+  const parts = resolved.split(".");
+  const root = parts[0];
+  const field = parts.at(-1) ?? "";
+
+  if (resolved === "profile.workplace") {
+    return Boolean(state.profile.workplace || state.profile.profession || state.profile.jobTitle);
+  }
+  if (resolved === "profile.jobTitle") {
+    return Boolean(state.profile.jobTitle || state.profile.profession);
+  }
+  if (resolved === "profile.military.dischargeRank") {
+    return Boolean(
+      state.profile.military?.dischargeRank ||
+      state.profile.militaryDischargeRank ||
+      (state.profile.militaryService === false && !state.profile.military?.framework),
+    );
+  }
+  if (resolved === "profile.militaryDischargeRank") {
+    return isQuestionKeyKnown(state, "profile.military.dischargeRank");
+  }
+
+  if (root === "profile" && parts.length === 2) {
+    const value = (state.profile as Record<string, unknown>)[field];
+    return value !== undefined && value !== null && value !== "";
+  }
+
+  if (root === "profile" && parts.length === 3 && parts[1] === "military") {
+    const value = (state.profile.military as Record<string, unknown> | undefined)?.[field];
+    return value !== undefined && value !== null && value !== "";
+  }
+
+  if (root === "spouse" && parts.length === 2) {
+    const value = (state.spouse as Record<string, unknown> | undefined)?.[field];
+    return value !== undefined && value !== null && value !== "";
+  }
+
+  if (root === "children" && parts.length === 3) {
+    const index = Number(parts[1]);
+    const child = state.children[index];
+    const value = child ? (child as Record<string, unknown>)[field] : undefined;
+    return value !== undefined && value !== null && value !== "";
+  }
+
+  return false;
+}
+
 export function eligibleChildren(state: ConversationState, today = new Date()) {
   return state.children.filter((child) => {
     const age = child.dateOfBirth ? ageFromBirthDate(child.dateOfBirth, today) : child.age;
@@ -190,7 +261,8 @@ export function applyInterviewUpdates(
 ): ConversationState {
   const next = structuredClone(state);
   for (const { path, value } of updates) {
-    const parts = path.split(".");
+    const normalizedPath = canonicalizeInterviewPath(path);
+    const parts = normalizedPath.split(".");
     const root = parts[0],
       field = parts.at(-1)!;
     let parsed: unknown = value.trim();
@@ -349,6 +421,7 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
     stage: RegistrationStage,
     required = false,
   ) {
+    if (isQuestionKeyKnown(state, key)) return;
     if (
       known !== undefined &&
       known !== null &&
@@ -602,7 +675,7 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
       "military",
     );
     add(
-      "profile.military.dischargeRank",
+      "profile.militaryDischargeRank",
       p.military?.dischargeRank ?? p.militaryDischargeRank,
       "מה הייתה דרגת השחרור שלך?",
       "What was your rank at discharge?",
