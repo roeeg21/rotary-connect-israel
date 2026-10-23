@@ -262,6 +262,11 @@ EXAMPLES of negative answers:
 - User: "אין התמחות" → update: {path: "profile.educationHistory.0.specialization", value: "אין"}
 - User: "לא שירתתי" → update: {path: "profile.military.framework", value: "none"}
 
+IMPORTANT - For array fields that user declines (rotaryPositions, children):
+When user says they have NO rotary positions or NO eligible children, add the field to skippedFields, NOT to updates.
+- User: "לא מילאתי תפקידים ברוטרי" → skippedFields: ["rotaryPositions"] (NOT an update!)
+- User: "אין ילדים מעל 28" → skippedFields: ["children"] (NOT an update!)
+
 IMPORTANT for year fields (joinYear, graduationYear, fromYear, toYear, dischargeYear, retirementYear): Extract ONLY the 4-digit year as a string (e.g., "2015"). When user says "in 2015", "שנת 2015", "joined 2015", "2015 הצטרפתי", extract just "2015".
 
 Allowed paths:
