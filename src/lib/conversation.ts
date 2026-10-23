@@ -19,19 +19,22 @@ export interface QuickReply {
   value: string;
 }
 
-// Registration stages
+// Registration stages (aligned with new 9-step form)
 export type RegistrationStage =
   | "welcome"
   | "language"
   | "account"
+  | "email_verification" // New: verify email with OTP
   | "personal"
+  | "rotary"
   | "professional"
-  | "community"
+  | "education"
+  | "military"
+  | "interests"
   | "spouse_intro"
   | "spouse_details"
   | "children_intro"
   | "children_details"
-  | "networking"
   | "review"
   | "completed";
 
@@ -56,6 +59,9 @@ export interface NetworkingPreferences {
   updates?: boolean;
 }
 
+// Rotary position type
+export type RotaryPosition = z.infer<typeof rotaryPositionSchema>;
+
 // Full conversation state
 export interface ConversationState {
   sessionId: string;
@@ -74,8 +80,10 @@ export interface ConversationState {
   // Rotary-specific
   clubId?: string;
   customClub?: string;
+  previousClub?: string;
   joinYear?: string;
   rotaryJoinDate?: string;
+  rotaryPositions?: RotaryPosition[];
   hasSpouse?: boolean;
   hasChildren?: boolean;
   hasEligibleChildren?: boolean;
@@ -86,7 +94,24 @@ export interface ConversationState {
     terms?: boolean;
     privacy?: boolean;
     notifications?: boolean;
+    dataAccuracy?: boolean;
+    familyDataProcessing?: boolean;
+    marketingCommunications?: boolean;
   };
+
+  // Email verification (OTP)
+  emailVerification?: {
+    status: "pending" | "sent" | "verified" | "failed";
+    sessionKey?: string;
+    email?: string;
+    attempts?: number;
+    lastSentAt?: number;
+    verifiedAt?: number;
+  };
+
+  // Draft integration
+  draftId?: string;
+  registrationMethod?: "form" | "chat";
 
   // Session metadata
   status: "in_progress" | "review" | "completed" | "abandoned";
@@ -124,12 +149,30 @@ export function applyChatResponse(
 // Zod schema for validation
 export const educationRecordSchema = z.object({
   degree: z.string().optional(),
+  level: z.enum(["high_school", "associate", "bachelor", "master", "doctorate", "professional", "other"]).optional(),
   fieldOfStudy: z.string().optional(),
   institution: z.string().optional(),
   graduationYear: z.string().optional(),
   specialization: z.string().optional(),
   postGraduationActivities: z.string().optional(),
   completedDuringMilitaryService: z.boolean().optional(),
+});
+
+export const militaryServiceSchema = z.object({
+  served: z.boolean().optional(),
+  framework: z.enum(["idf", "police", "security", "national_service", "none"]).optional(),
+  unit: z.string().optional(),
+  role: z.string().optional(),
+  dischargeRank: z.string().optional(),
+  dischargeYear: z.string().optional(),
+  commandExperience: z.string().optional(),
+});
+
+export const rotaryPositionSchema = z.object({
+  level: z.enum(["club", "district", "national", "international"]).optional(),
+  title: z.string().optional(),
+  fromYear: z.string().optional(),
+  toYear: z.string().optional(),
 });
 
 export const extractedProfileSchema = z.object({
@@ -146,19 +189,29 @@ export const extractedProfileSchema = z.object({
   workplace: z.string().optional(),
   industry: z.string().optional(),
   experience: z.string().optional(),
+  employmentStatus: z.enum(["employed", "self_employed", "retired", "seeking", "other"]).optional(),
+  retirementYear: z.string().optional(),
   skills: z.array(z.string()).optional(),
   expertise: z.array(z.string()).optional(),
   interests: z.array(z.string()).optional(),
+  interestCategories: z.array(z.enum([
+    "business", "technology", "health", "education", "arts", "sports",
+    "environment", "community", "finance", "legal", "real_estate", "other"
+  ])).optional(),
   goals: z.string().optional(),
   age: z.number().int().min(18).max(130).optional(),
   dateOfBirth: z.string().optional(),
   hasHigherEducation: z.boolean().optional(),
   education: z.string().optional(),
   educationHistory: z.array(educationRecordSchema).optional(),
+  // Legacy military fields (kept for compatibility)
   militaryService: z.boolean().optional(),
   militaryDischargeRank: z.string().optional(),
+  // New military structure
+  military: militaryServiceSchema.optional(),
   boards: z.string().optional(),
   hobbies: z.array(z.string()).optional(),
+  volunteering: z.string().optional(),
   helpWith: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
 });
@@ -235,19 +288,22 @@ export function createMessage(
   };
 }
 
-// Stage progression logic
+// Stage progression logic (aligned with 9-step form)
 export const STAGE_ORDER = [
   "welcome",
   "language",
   "account",
+  "email_verification", // Verify email with OTP before continuing
   "personal",
+  "rotary",
   "professional",
-  "community",
+  "education",
+  "military",
+  "interests",
   "spouse_intro",
   "spouse_details",
   "children_intro",
   "children_details",
-  "networking",
   "review",
   "completed",
 ] as const;

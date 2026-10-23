@@ -49,19 +49,64 @@ const PROFESSION_SYNONYMS: Record<string, string[]> = {
   software: ["developer", "programmer", "coder", "תוכנה", "מפתח", "מתכנת"],
 };
 
+// Military framework synonyms
+const MILITARY_SYNONYMS: Record<string, string[]> = {
+  idf: ["צה״ל", "צהל", "army", "military", "soldier", "officer", "קצין", "חייל", "צבא"],
+  airforce: ["חיל האוויר", "טייס", "pilot", "air force"],
+  navy: ["חיל הים", "navy", "naval"],
+  intelligence: ["מודיעין", "intelligence", "8200", "unit 8200"],
+  police: ["משטרה", "שוטר", "police", "cop", "officer"],
+  security: ["שירותי ביטחון", "שב״כ", "מוסד", "security", "shin bet", "mossad"],
+  national_service: ["שירות לאומי", "national service", "sherut leumi"],
+};
+
+// Interest category synonyms
+const INTEREST_SYNONYMS: Record<string, string[]> = {
+  business: ["עסקים", "business", "commerce", "מסחר", "יזמות", "entrepreneurship"],
+  technology: ["טכנולוגיה", "technology", "tech", "הייטק", "hi-tech", "software", "תוכנה"],
+  health: ["בריאות", "health", "medical", "רפואה", "wellness"],
+  education: ["חינוך", "education", "teaching", "הוראה", "academy", "אקדמיה"],
+  arts: ["אמנות", "arts", "culture", "תרבות", "music", "מוזיקה"],
+  sports: ["ספורט", "sports", "fitness", "כושר"],
+  environment: ["סביבה", "environment", "sustainability", "קיימות", "green", "ירוק"],
+  community: ["קהילה", "community", "social", "חברתי", "volunteering", "התנדבות"],
+  finance: ["פיננסים", "finance", "banking", "בנקאות", "investment", "השקעות"],
+  legal: ["משפט", "legal", "law", "עורכי דין"],
+  real_estate: ["נדל״ן", "real estate", "property", "נכסים"],
+};
+
+// Rotary position synonyms
+const ROTARY_POSITION_SYNONYMS: Record<string, string[]> = {
+  president: ["נשיא", "president", "club president", "נשיא מועדון"],
+  governor: ["מושל", "governor", "district governor", "מושל מחוז"],
+  secretary: ["מזכיר", "secretary", "club secretary"],
+  treasurer: ["גזבר", "treasurer"],
+  director: ["דירקטור", "director", "board member", "חבר הנהלה"],
+};
+
 // Expand query with synonyms
 function expandQueryWithSynonyms(query: string): string[] {
   const terms = query.toLowerCase().split(/\s+/);
   const expanded = new Set<string>(terms);
 
+  // All synonym maps to check
+  const allSynonyms = [
+    PROFESSION_SYNONYMS,
+    MILITARY_SYNONYMS,
+    INTEREST_SYNONYMS,
+    ROTARY_POSITION_SYNONYMS,
+  ];
+
   for (const term of terms) {
-    for (const [profession, synonyms] of Object.entries(PROFESSION_SYNONYMS)) {
-      if (
-        term === profession ||
-        synonyms.some((s) => s.toLowerCase().includes(term) || term.includes(s.toLowerCase()))
-      ) {
-        expanded.add(profession);
-        synonyms.forEach((s) => expanded.add(s.toLowerCase()));
+    for (const synonymMap of allSynonyms) {
+      for (const [key, synonyms] of Object.entries(synonymMap)) {
+        if (
+          term === key ||
+          synonyms.some((s) => s.toLowerCase().includes(term) || term.includes(s.toLowerCase()))
+        ) {
+          expanded.add(key);
+          synonyms.forEach((s) => expanded.add(s.toLowerCase()));
+        }
       }
     }
   }
@@ -78,6 +123,7 @@ export interface ParsedQuery {
     workplace?: string;
     profession?: string;
   };
+  detectedProfession?: string; // The profession term that was detected
 }
 
 // Simple AI-like query parser (deterministic, no external API needed)
@@ -147,7 +193,21 @@ export function parseNaturalLanguageQuery(query: string): ParsedQuery {
   // Expand with synonyms
   searchTerms = [...new Set([...searchTerms, ...expandQueryWithSynonyms(searchTerms.join(" "))])];
 
-  return { searchTerms, filters };
+  // Detect profession in query for strict filtering
+  let detectedProfession: string | undefined;
+  for (const [profession, synonyms] of Object.entries(PROFESSION_SYNONYMS)) {
+    const allTerms = [profession, ...synonyms];
+    for (const term of allTerms) {
+      if (lowerQuery.includes(term.toLowerCase())) {
+        detectedProfession = profession;
+        filters.profession = profession;
+        break;
+      }
+    }
+    if (detectedProfession) break;
+  }
+
+  return { searchTerms, filters, detectedProfession };
 }
 
 // Create unified search index
@@ -169,6 +229,16 @@ interface SearchDocument {
   bioHe?: string;
   relationship?: string;
   primaryMemberId?: string;
+  // New fields from upgraded registration
+  militaryFramework?: string;
+  militaryUnit?: string;
+  militaryRank?: string;
+  interestCategories?: string;
+  expertise?: string;
+  rotaryClub?: string;
+  rotaryPositions?: string;
+  education?: string;
+  educationInstitution?: string;
   // Original data references
   _member?: Member;
   _familyMember?: FamilyMember;
@@ -239,26 +309,36 @@ function getFuseInstance(): Fuse<SearchDocument> {
     searchDocuments = buildSearchDocuments();
     fuseInstance = new Fuse(searchDocuments, {
       keys: [
-        { name: "name", weight: 0.3 },
-        { name: "nameHe", weight: 0.3 },
-        { name: "profession", weight: 0.25 },
-        { name: "professionHe", weight: 0.25 },
+        { name: "name", weight: 0.35 },
+        { name: "nameHe", weight: 0.35 },
+        { name: "profession", weight: 0.3 },
+        { name: "professionHe", weight: 0.3 },
         { name: "jobTitle", weight: 0.2 },
         { name: "jobTitleHe", weight: 0.2 },
-        { name: "workplace", weight: 0.2 },
-        { name: "industry", weight: 0.15 },
-        { name: "industryHe", weight: 0.15 },
-        { name: "location", weight: 0.1 },
-        { name: "locationHe", weight: 0.1 },
-        { name: "bio", weight: 0.05 },
-        { name: "bioHe", weight: 0.05 },
+        { name: "workplace", weight: 0.15 },
+        { name: "industry", weight: 0.1 },
+        { name: "industryHe", weight: 0.1 },
+        { name: "location", weight: 0.05 },
+        { name: "locationHe", weight: 0.05 },
+        { name: "bio", weight: 0.02 },
+        { name: "bioHe", weight: 0.02 },
+        // New fields from upgraded registration
+        { name: "militaryFramework", weight: 0.1 },
+        { name: "militaryUnit", weight: 0.08 },
+        { name: "militaryRank", weight: 0.08 },
+        { name: "interestCategories", weight: 0.1 },
+        { name: "expertise", weight: 0.12 },
+        { name: "rotaryClub", weight: 0.1 },
+        { name: "rotaryPositions", weight: 0.1 },
+        { name: "education", weight: 0.08 },
+        { name: "educationInstitution", weight: 0.08 },
       ],
-      threshold: 0.6, // Fuzzy match threshold (lower = stricter, 0.6 is lenient)
-      distance: 200,
+      threshold: 0.35, // Stricter fuzzy match threshold (lower = stricter)
+      distance: 100,
       minMatchCharLength: 2,
       includeScore: true,
       ignoreLocation: true,
-      useExtendedSearch: false, // Disabled for simpler matching
+      useExtendedSearch: false,
       isCaseSensitive: false,
       findAllMatches: true,
     });
@@ -377,7 +457,7 @@ export function smartSearch(
 
   for (const result of fuseResults) {
     const doc = result.item;
-    const score = 1 - (result.score || 0); // Convert Fuse score (lower = better) to our score (higher = better)
+    let score = 1 - (result.score || 0); // Convert Fuse score (lower = better) to our score (higher = better)
 
     // Apply relationship filter
     const effectiveRelFilter = relationshipFilter !== "all" ? relationshipFilter : parsed.filters.relationship;
@@ -393,6 +473,31 @@ export function smartSearch(
     if (effectiveLocFilter) {
       const loc = (doc.location || doc.locationHe || "").toLowerCase();
       if (!loc.includes(effectiveLocFilter.toLowerCase())) continue;
+    }
+
+    // Apply strict profession filter when a profession was explicitly detected
+    if (parsed.detectedProfession) {
+      const synonyms = PROFESSION_SYNONYMS[parsed.detectedProfession] || [];
+      const allProfessionTerms = [parsed.detectedProfession, ...synonyms].map(t => t.toLowerCase());
+
+      const docProfession = (doc.profession || "").toLowerCase();
+      const docProfessionHe = (doc.professionHe || "").toLowerCase();
+      const docJobTitle = (doc.jobTitle || "").toLowerCase();
+      const docJobTitleHe = (doc.jobTitleHe || "").toLowerCase();
+
+      const matchesProfession = allProfessionTerms.some(term =>
+        docProfession.includes(term) ||
+        docProfessionHe.includes(term) ||
+        docJobTitle.includes(term) ||
+        docJobTitleHe.includes(term) ||
+        term.includes(docProfession) ||
+        term.includes(docProfessionHe)
+      );
+
+      if (!matchesProfession) continue;
+
+      // Boost score for exact profession match
+      score += 0.2;
     }
 
     // Apply workplace filter

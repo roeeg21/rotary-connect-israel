@@ -20,6 +20,7 @@ import { useAppState } from "@/lib/app-state";
 import { useI18n } from "@/lib/i18n";
 import { useConversation } from "@/lib/useConversation";
 import { processMessage, completeRegistration } from "@/lib/chat.functions";
+import { createDraft, updateDraft, switchRegistrationMethod } from "@/lib/registration.functions";
 import type { ConversationState } from "@/lib/conversation";
 
 export const Route = createFileRoute("/register")({
@@ -47,6 +48,8 @@ function RegisterChatPage() {
   const { lang, dir, toggleLang } = useI18n();
   const processMessageFn = useServerFn(processMessage);
   const completeRegistrationFn = useServerFn(completeRegistration);
+  const createDraftFn = useServerFn(createDraft);
+  const switchMethodFn = useServerFn(switchRegistrationMethod);
   const isRTL = lang === "he";
 
   // Password setup state
@@ -436,20 +439,101 @@ function RegisterChatPage() {
         <p className="text-sm text-muted-foreground">
           {tr("מעדיפים טופס מסורתי?", "Prefer a traditional form?")}{" "}
           <button
-            onClick={() => {
-              // Build search params with collected data
-              const params = new URLSearchParams();
-              if (state.profile.firstName) params.set("firstName", state.profile.firstName);
-              if (state.profile.lastName) params.set("lastName", state.profile.lastName);
-              if (state.profile.email) params.set("email", state.profile.email);
-              if (state.contactInfo?.phone) params.set("phone", state.contactInfo.phone);
-              if (state.profile.city) params.set("city", state.profile.city);
-              if (state.profile.profession) params.set("profession", state.profile.profession);
-              if (state.profile.workplace) params.set("workplace", state.profile.workplace);
-              if (state.clubId) params.set("club", state.clubId);
+            onClick={async () => {
+              // Use draft system to preserve data when switching methods
+              try {
+                let draftId = state.draftId;
 
-              const queryString = params.toString();
-              navigate({ to: `/register-form${queryString ? `?${queryString}` : ""}` });
+                // If we already have a draft, switch its method
+                if (draftId) {
+                  await switchMethodFn({ data: { id: draftId, newMethod: "form" } });
+                } else if (state.profile.email) {
+                  // Create a new draft with collected data
+                  const draft = await createDraftFn({
+                    data: {
+                      method: "form",
+                      email: state.profile.email,
+                      sessionId: state.sessionId,
+                      initialData: {
+                        firstName: state.profile.firstName,
+                        lastName: state.profile.lastName,
+                        email: state.profile.email,
+                        phone: state.contactInfo?.phone || state.profile.phone,
+                        city: state.profile.city,
+                        clubId: state.clubId,
+                        customClub: state.customClub,
+                        joinYear: state.joinYear,
+                        currentEmployment: state.profile.workplace || state.profile.profession ? {
+                          employer: state.profile.workplace,
+                          role: state.profile.profession || state.profile.jobTitle,
+                          industry: state.profile.industry,
+                        } : undefined,
+                        dateOfBirth: state.profile.dateOfBirth,
+                        age: state.profile.age,
+                        hasHigherEducation: state.profile.hasHigherEducation,
+                        educationHistory: state.profile.educationHistory?.map(edu => ({
+                          level: edu.degree as any,
+                          fieldOfStudy: edu.fieldOfStudy,
+                          institution: edu.institution,
+                          graduationYear: edu.graduationYear,
+                        })),
+                        military: state.profile.military || (state.profile.militaryService !== undefined ? {
+                          served: state.profile.militaryService,
+                          framework: state.profile.militaryService ? "idf" : "none",
+                          dischargeRank: state.profile.militaryDischargeRank,
+                        } : undefined),
+                        hasSpouse: state.hasSpouse,
+                        spouse: state.spouse ? {
+                          firstName: state.spouse.firstName,
+                          lastName: state.spouse.lastName,
+                          profession: state.spouse.profession,
+                        } : undefined,
+                        hasChildren: state.hasChildren,
+                        hasEligibleChildren: state.hasEligibleChildren,
+                        children: state.children.map(child => ({
+                          firstName: child.name,
+                          birthYear: child.dateOfBirth?.slice(0, 4),
+                          age: child.age,
+                          profession: child.profession,
+                        })),
+                        interests: {
+                          hobbies: state.profile.hobbies,
+                          expertise: state.profile.expertise,
+                          categories: state.profile.interestCategories,
+                        },
+                        rotaryPositions: state.rotaryPositions,
+                        registrationMethod: "form",
+                      },
+                    },
+                  });
+                  draftId = draft.id;
+                }
+
+                // Navigate to form with draft ID
+                const params = new URLSearchParams();
+                if (draftId) params.set("draftId", draftId);
+                if (state.profile.firstName) params.set("firstName", state.profile.firstName);
+                if (state.profile.lastName) params.set("lastName", state.profile.lastName);
+                if (state.profile.email) params.set("email", state.profile.email);
+
+                const queryString = params.toString();
+                navigate({ to: `/register-form${queryString ? `?${queryString}` : ""}` });
+              } catch (error) {
+                console.error("Failed to switch registration method:", error);
+                // Fallback to simple param-based transfer
+                const params = new URLSearchParams();
+                if (state.profile.firstName) params.set("firstName", state.profile.firstName);
+                if (state.profile.lastName) params.set("lastName", state.profile.lastName);
+                if (state.profile.email) params.set("email", state.profile.email);
+                if (state.contactInfo?.phone) params.set("phone", state.contactInfo.phone);
+                if (state.profile.city) params.set("city", state.profile.city);
+                if (state.profile.profession) params.set("profession", state.profile.profession);
+                if (state.profile.workplace) params.set("workplace", state.profile.workplace);
+                if (state.clubId) params.set("club", state.clubId);
+
+                const queryString = params.toString();
+                navigate({ to: `/register-form${queryString ? `?${queryString}` : ""}` });
+              }
             }}
             className="font-medium text-primary hover:underline"
           >

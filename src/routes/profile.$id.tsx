@@ -21,6 +21,7 @@ import { memberById } from "@/data/members";
 import { getFamilyMembers, getRelationshipLabel, type FamilyMember } from "@/data/family-members";
 import { useAppState } from "@/lib/app-state";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile/$id")({
   loader: ({ params }) => {
@@ -51,12 +52,12 @@ export const Route = createFileRoute("/profile/$id")({
 
 function Section({ title, children, icon }: { title: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <section className="border-t border-border py-6">
-      <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase flex items-center gap-2">
+    <section className="border-t border-border py-7">
+      <h2 className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase flex items-center gap-2">
         {icon}
         {title}
       </h2>
-      <div className="mt-3">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -66,30 +67,30 @@ function FamilyMemberCard({ member, lang }: { member: FamilyMember; lang: "he" |
   const name = `${member.firstName[lang]} ${member.lastName[lang]}`;
 
   return (
-    <div className="flex items-start gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-secondary/30">
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-lg font-semibold">
+    <div className="card-interactive flex items-start gap-4 p-4">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary text-base font-semibold">
         {member.firstName[lang].charAt(0)}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold">{name}</p>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+        <div className="flex items-center gap-2.5">
+          <p className="font-semibold tracking-tight">{name}</p>
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
             {relationshipLabel}
           </span>
         </div>
         {member.profession && (
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             {member.jobTitle?.[lang] || member.profession[lang]}
           </p>
         )}
         {member.workplace && (
-          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Building2 className="size-3.5" aria-hidden />
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Building2 className="size-3.5" strokeWidth={1.75} aria-hidden />
             {member.workplace}
           </p>
         )}
         {member.age && !member.isMinor && (
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {member.age} {lang === "he" ? "שנים" : "years old"}
           </p>
         )}
@@ -114,31 +115,31 @@ function ProfilePage() {
   const name = member.name[lang];
 
   return (
-    <div className="container-app max-w-3xl py-6 sm:py-10">
+    <div className="container-app max-w-3xl py-6 sm:py-12">
       <Link
         to="/"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm"
+        className="btn-press text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium transition-colors"
       >
         <Back className="size-4" aria-hidden />
         {t("backToSearch")}
       </Link>
 
-      <header className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+      <header className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-7">
         <PersonAvatar name={name} photo={member.photo} size="xl" />
         <div className="min-w-0 flex-1">
-          <h1 className="font-heading text-2xl leading-tight font-bold">{name}</h1>
-          <p className="mt-1 text-base">{member.position[lang]}</p>
-          <p className="text-muted-foreground flex items-center gap-1.5 text-base">
-            <Building2 className="size-4" aria-hidden />
+          <h1 className="font-heading text-[1.625rem] leading-tight font-bold tracking-tight sm:text-[1.875rem]">{name}</h1>
+          <p className="mt-1.5 text-base font-medium text-foreground/80">{member.position[lang]}</p>
+          <p className="text-muted-foreground flex items-center gap-2 text-base mt-1">
+            <Building2 className="size-4" strokeWidth={1.75} aria-hidden />
             {member.company}
           </p>
-          <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
-            <span className="text-primary inline-flex items-center gap-1.5 font-medium">
+          <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <span className="text-primary inline-flex items-center gap-1.5 font-semibold">
               <BadgeCheck className="text-gold size-4" aria-hidden />
               {member.clubName[lang]}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <MapPin className="size-4" aria-hidden />
+              <MapPin className="size-4" strokeWidth={1.75} aria-hidden />
               {member.city[lang]}
             </span>
             {member.accountType === "family" && member.familyOf && (
@@ -161,18 +162,18 @@ function ProfilePage() {
         contactInfo={member.contactInfo}
       />
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="mt-7 flex flex-wrap gap-2.5">
         <button
           type="button"
           onClick={() => setContactDialogOpen(true)}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 h-11 flex-1 rounded-md px-5 text-sm font-semibold transition-colors sm:flex-none"
+          className="btn-press bg-primary text-primary-foreground hover:bg-[var(--primary-hover)] h-12 flex-1 rounded-xl px-6 text-sm font-semibold shadow-sm transition-all hover:shadow-raised sm:flex-none"
         >
           {t("contactPerson")} {member.name[lang].split(" ")[0]}
         </button>
         <button
           type="button"
           onClick={() => toast.success(t("requestIntro"))}
-          className="hover:bg-secondary h-11 flex-1 rounded-md border border-border px-5 text-sm font-semibold transition-colors sm:flex-none"
+          className="btn-press hover:bg-secondary h-12 flex-1 rounded-xl border border-border px-6 text-sm font-semibold transition-all hover:border-border-strong sm:flex-none"
         >
           {t("requestIntro")}
         </button>
@@ -180,13 +181,18 @@ function ProfilePage() {
           type="button"
           onClick={() => toggleSaved(member.id)}
           aria-pressed={saved}
-          className="hover:bg-secondary inline-flex h-11 items-center justify-center rounded-md border border-border px-3.5"
+          className={cn(
+            "btn-press inline-flex size-12 items-center justify-center rounded-xl border transition-all",
+            saved
+              ? "border-gold/30 bg-gold-soft text-gold"
+              : "border-border hover:bg-secondary hover:border-border-strong"
+          )}
           aria-label={saved ? t("saved") : t("save")}
         >
           {saved ? (
-            <BookmarkCheck className="text-gold-foreground size-4" />
+            <BookmarkCheck className="size-5" strokeWidth={2} />
           ) : (
-            <Bookmark className="size-4" />
+            <Bookmark className="size-5" strokeWidth={1.75} />
           )}
         </button>
         <button
@@ -195,10 +201,10 @@ function ProfilePage() {
             void navigator.clipboard?.writeText(window.location.href);
             toast.success(t("share"));
           }}
-          className="hover:bg-secondary inline-flex h-11 items-center justify-center rounded-md border border-border px-3.5"
+          className="btn-press hover:bg-secondary inline-flex size-12 items-center justify-center rounded-xl border border-border transition-all hover:border-border-strong"
           aria-label={t("share")}
         >
-          <Share2 className="size-4" />
+          <Share2 className="size-5" strokeWidth={1.75} />
         </button>
       </div>
 

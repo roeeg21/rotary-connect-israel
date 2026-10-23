@@ -4,9 +4,11 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
+  StyleSheet,
   ActivityIndicator,
+  Modal,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +18,10 @@ import {
   Users,
   Heart,
   User as UserIcon,
+  Baby,
+  Filter,
+  X,
+  Sparkles,
 } from "lucide-react-native";
 
 import { useAppStore } from "@/lib/store/app";
@@ -23,55 +29,25 @@ import { isRTL } from "@/lib/i18n";
 import { api } from "@/lib/api/client";
 import type { SearchResult, RelationshipFilter } from "@/lib/types";
 
-// Rotary brand colors
+// iOS-style colors
 const COLORS = {
-  primary: "#003366",
-  background: "#FAFAF8",
-  text: "#1A1A1A",
-  muted: "#737373",
-  border: "#E5E5E3",
-  card: "#FFFFFF",
+  primary: "#007AFF",
+  secondary: "#5856D6",
+  background: "#F2F2F7",
+  secondaryBackground: "#FFFFFF",
+  label: "#000000",
+  secondaryLabel: "#3C3C43",
+  tertiaryLabel: "#8E8E93",
+  separator: "rgba(60, 60, 67, 0.12)",
+  fill: "rgba(120, 120, 128, 0.12)",
+  gold: "#C4A052",
 };
 
-// Mock search results for demo
-const MOCK_RESULTS: SearchResult[] = [
-  {
-    id: "m1",
-    type: "member",
-    name: { he: "דני כהן", en: "Danny Cohen" },
-    profession: { he: "עורך דין", en: "Lawyer" },
-    location: { he: "תל אביב", en: "Tel Aviv" },
-    industry: { he: "משפטים", en: "Legal" },
-    score: 0.95,
-    reasons: ["Profession match", "Location match"],
-  },
-  {
-    id: "m2",
-    type: "member",
-    name: { he: "מיכל לוי", en: "Michal Levi" },
-    profession: { he: "יזמית", en: "Entrepreneur" },
-    location: { he: "הרצליה", en: "Herzliya" },
-    industry: { he: "הייטק", en: "High-Tech" },
-    score: 0.88,
-    reasons: ["Industry match"],
-  },
-  {
-    id: "f1",
-    type: "family",
-    name: { he: "שרה כהן", en: "Sarah Cohen" },
-    profession: { he: "שף", en: "Chef" },
-    location: { he: "תל אביב", en: "Tel Aviv" },
-    relationship: "spouse",
-    primaryMemberId: "m1",
-    score: 0.72,
-    reasons: ["Related to Danny Cohen"],
-  },
-];
-
-const RELATIONSHIP_TABS = [
-  { key: "all" as const, icon: Users },
-  { key: "members" as const, icon: UserIcon },
-  { key: "spouses" as const, icon: Heart },
+const RELATIONSHIP_TABS: { key: RelationshipFilter; icon: typeof Users; labelKey: string }[] = [
+  { key: "all", icon: Users, labelKey: "allPeople" },
+  { key: "members", icon: UserIcon, labelKey: "membersOnly" },
+  { key: "spouses", icon: Heart, labelKey: "spouses" },
+  { key: "children", icon: Baby, labelKey: "children" },
 ];
 
 export default function SearchResultsScreen() {
@@ -83,240 +59,417 @@ export default function SearchResultsScreen() {
   const rtl = isRTL();
   const ChevronIcon = rtl ? ChevronLeft : ChevronRight;
 
-  const [relationshipFilter, setRelationshipFilter] =
-    useState<RelationshipFilter>("all");
+  const [relationshipFilter, setRelationshipFilter] = useState<RelationshipFilter>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<string | undefined>();
+  const [industryFilter, setIndustryFilter] = useState<string | undefined>();
 
-  // In production, use real API call
-  // const { data, isLoading, error } = useQuery({
-  //   queryKey: ["search", query, relationshipFilter],
-  //   queryFn: () => api.search(query, { relationshipFilter }),
-  // });
-
-  // For demo, use mock data
-  const isLoading = false;
-  const results = MOCK_RESULTS.filter((r) => {
-    if (relationshipFilter === "all") return true;
-    if (relationshipFilter === "members") return r.type === "member";
-    if (relationshipFilter === "spouses") return r.relationship === "spouse";
-    return true;
+  // Fetch search results
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["search", query, relationshipFilter, locationFilter, industryFilter],
+    queryFn: () =>
+      api.search(query || "", {
+        relationshipFilter,
+        locationFilter,
+        limit: 50,
+      }),
+    enabled: !!query,
   });
+
+  const results = data?.results || [];
 
   const handleMemberPress = (result: SearchResult) => {
     addRecentlyViewed(result.id);
     router.push(`/member/${result.id}`);
   };
 
+  const ResultCard = ({ result }: { result: SearchResult }) => {
+    const name = language === "he" ? result.name.he : result.name.en;
+    const profession = result.profession
+      ? language === "he"
+        ? result.profession.he
+        : result.profession.en
+      : null;
+    const location = result.location
+      ? language === "he"
+        ? result.location.he
+        : result.location.en
+      : null;
+
+    return (
+      <TouchableOpacity
+        onPress={() => handleMemberPress(result)}
+        style={styles.resultCard}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.resultContent, { flexDirection: rtl ? "row-reverse" : "row" }]}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{name.charAt(0)}</Text>
+          </View>
+          <View style={styles.resultInfo}>
+            <Text style={[styles.resultName, { textAlign: rtl ? "right" : "left" }]}>
+              {name}
+            </Text>
+            {profession && (
+              <Text style={[styles.resultProfession, { textAlign: rtl ? "right" : "left" }]}>
+                {profession}
+              </Text>
+            )}
+            {location && (
+              <Text style={[styles.resultLocation, { textAlign: rtl ? "right" : "left" }]}>
+                {location}
+              </Text>
+            )}
+            {result.type === "family" && result.relationship && (
+              <View style={styles.relationshipBadge}>
+                <Text style={styles.relationshipText}>{t(result.relationship)}</Text>
+              </View>
+            )}
+          </View>
+          <ChevronIcon size={20} color={COLORS.tertiaryLabel} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <Stack.Screen
         options={{
           headerShown: true,
-          title: t("resultsFor"),
+          title: t("results"),
           headerBackTitle: t("back"),
         }}
       />
 
-      {/* Query display */}
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 8,
-          paddingBottom: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: COLORS.border,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 20,
-            fontWeight: "600",
-            color: COLORS.text,
-            textAlign: rtl ? "right" : "left",
-          }}
-        >
-          "{decodeURIComponent(query || "")}"
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            color: COLORS.muted,
-            marginTop: 4,
-            textAlign: rtl ? "right" : "left",
-          }}
-        >
-          {results.length} {t("results")}
-        </Text>
+      {/* Query and result count */}
+      <View style={styles.queryHeader}>
+        <View style={[styles.queryRow, { flexDirection: rtl ? "row-reverse" : "row" }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.queryText, { textAlign: rtl ? "right" : "left" }]}>
+              "{decodeURIComponent(query || "")}"
+            </Text>
+            <Text style={[styles.resultCount, { textAlign: rtl ? "right" : "left" }]}>
+              {results.length} {t("results")}
+            </Text>
+          </View>
+          {data && (
+            <View style={styles.aiBadge}>
+              <Sparkles size={12} color={COLORS.secondary} />
+              <Text style={styles.aiBadgeText}>AI</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Relationship filter tabs */}
-      <View
-        style={{
-          flexDirection: rtl ? "row-reverse" : "row",
-          paddingHorizontal: 20,
-          paddingVertical: 12,
-          gap: 8,
-          borderBottomWidth: 1,
-          borderBottomColor: COLORS.border,
-        }}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsContainer}
+        contentContainerStyle={styles.tabsContent}
       >
-        {RELATIONSHIP_TABS.map(({ key, icon: Icon }) => (
-          <TouchableOpacity
-            key={key}
-            onPress={() => setRelationshipFilter(key)}
-            style={{
-              flexDirection: rtl ? "row-reverse" : "row",
-              alignItems: "center",
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 20,
-              backgroundColor:
-                relationshipFilter === key ? COLORS.primary : COLORS.card,
-              borderWidth: 1,
-              borderColor:
-                relationshipFilter === key ? COLORS.primary : COLORS.border,
-            }}
-          >
-            <Icon
-              size={16}
-              color={relationshipFilter === key ? "#FFFFFF" : COLORS.muted}
-            />
-            <Text
-              style={{
-                fontSize: 14,
-                color: relationshipFilter === key ? "#FFFFFF" : COLORS.text,
-                marginStart: 6,
-              }}
+        {RELATIONSHIP_TABS.map(({ key, icon: Icon, labelKey }) => {
+          const isActive = relationshipFilter === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              onPress={() => setRelationshipFilter(key)}
+              style={[
+                styles.tab,
+                isActive && styles.tabActive,
+                { flexDirection: rtl ? "row-reverse" : "row" },
+              ]}
+              activeOpacity={0.7}
             >
-              {t(
-                key === "all"
-                  ? "allPeople"
-                  : key === "members"
-                  ? "membersOnly"
-                  : "spouses"
-              )}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Icon size={16} color={isActive ? "#FFFFFF" : COLORS.tertiaryLabel} />
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                {t(labelKey)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
 
+        {/* Filter button */}
+        <TouchableOpacity
+          onPress={() => setShowFilters(true)}
+          style={[styles.tab, styles.filterButton]}
+          activeOpacity={0.7}
+        >
+          <Filter size={16} color={COLORS.primary} />
+          <Text style={[styles.tabText, { color: COLORS.primary }]}>{t("filters")}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Results */}
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={{ marginTop: 16, color: COLORS.muted }}>{t("searching")}</Text>
+          <Text style={styles.loadingText}>{t("searching")}</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>{t("searchError")}</Text>
+          <Text style={styles.emptyHint}>{t("tryAgain")}</Text>
         </View>
       ) : results.length === 0 ? (
-        <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingHorizontal: 40,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "600",
-              color: COLORS.text,
-              textAlign: "center",
-            }}
-          >
-            {t("noResults")}
-          </Text>
-          <Text
-            style={{
-              fontSize: 15,
-              color: COLORS.muted,
-              textAlign: "center",
-              marginTop: 8,
-            }}
-          >
-            {t("noResultsHint")}
-          </Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTitle}>{t("noResults")}</Text>
+          <Text style={styles.emptyHint}>{t("noResultsHint")}</Text>
         </View>
       ) : (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 20, gap: 12 }}
-        >
+        <ScrollView style={styles.resultsList} contentContainerStyle={styles.resultsContent}>
           {results.map((result) => (
-            <TouchableOpacity
-              key={result.id}
-              onPress={() => handleMemberPress(result)}
-              style={{
-                flexDirection: rtl ? "row-reverse" : "row",
-                alignItems: "center",
-                backgroundColor: COLORS.card,
-                borderRadius: 12,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-              }}
-            >
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: `${COLORS.primary}20`,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginEnd: 16,
-                }}
-              >
-                <Text
-                  style={{
-                    color: COLORS.primary,
-                    fontWeight: "bold",
-                    fontSize: 20,
-                  }}
-                >
-                  {(language === "he" ? result.name.he : result.name.en).charAt(0)}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: COLORS.text,
-                    textAlign: rtl ? "right" : "left",
-                  }}
-                >
-                  {language === "he" ? result.name.he : result.name.en}
-                </Text>
-                {result.profession && (
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      color: COLORS.muted,
-                      marginTop: 2,
-                      textAlign: rtl ? "right" : "left",
-                    }}
-                  >
-                    {language === "he"
-                      ? result.profession.he
-                      : result.profession.en}
-                  </Text>
-                )}
-                {result.type === "family" && result.relationship && (
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: COLORS.primary,
-                      marginTop: 4,
-                      textAlign: rtl ? "right" : "left",
-                    }}
-                  >
-                    {t(result.relationship)}
-                  </Text>
-                )}
-              </View>
-              <ChevronIcon size={20} color={COLORS.muted} />
-            </TouchableOpacity>
+            <ResultCard key={result.id} result={result} />
           ))}
         </ScrollView>
       )}
+
+      {/* Filters Modal */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{t("filters")}</Text>
+            <TouchableOpacity onPress={() => setShowFilters(false)}>
+              <X size={24} color={COLORS.label} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalContent}>
+            <Text style={styles.filterLabel}>{t("location")}</Text>
+            {/* Location filter options would go here */}
+            <Text style={styles.filterHint}>{t("comingSoon")}</Text>
+
+            <Text style={[styles.filterLabel, { marginTop: 24 }]}>{t("industry")}</Text>
+            {/* Industry filter options would go here */}
+            <Text style={styles.filterHint}>{t("comingSoon")}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.applyButton}
+            onPress={() => setShowFilters(false)}
+          >
+            <Text style={styles.applyButtonText}>{t("apply")}</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  queryHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: COLORS.secondaryBackground,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.separator,
+  },
+  queryRow: {
+    alignItems: "center",
+  },
+  queryText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: COLORS.label,
+  },
+  resultCount: {
+    fontSize: 14,
+    color: COLORS.tertiaryLabel,
+    marginTop: 4,
+  },
+  aiBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: `${COLORS.secondary}15`,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  aiBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.secondary,
+  },
+  tabsContainer: {
+    maxHeight: 56,
+    backgroundColor: COLORS.secondaryBackground,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.separator,
+  },
+  tabsContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  tab: {
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.fill,
+    gap: 6,
+  },
+  tabActive: {
+    backgroundColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    color: COLORS.secondaryLabel,
+    fontWeight: "500",
+  },
+  tabTextActive: {
+    color: "#FFFFFF",
+  },
+  filterButton: {
+    backgroundColor: `${COLORS.primary}15`,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: COLORS.tertiaryLabel,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.label,
+    textAlign: "center",
+  },
+  emptyHint: {
+    fontSize: 15,
+    color: COLORS.tertiaryLabel,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 22,
+  },
+  resultsList: {
+    flex: 1,
+  },
+  resultsContent: {
+    padding: 16,
+    gap: 12,
+  },
+  resultCard: {
+    backgroundColor: COLORS.secondaryBackground,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  resultContent: {
+    alignItems: "center",
+    padding: 16,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.fill,
+    alignItems: "center",
+    justifyContent: "center",
+    marginEnd: 16,
+  },
+  avatarText: {
+    color: COLORS.primary,
+    fontWeight: "600",
+    fontSize: 20,
+  },
+  resultInfo: {
+    flex: 1,
+  },
+  resultName: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: COLORS.label,
+  },
+  resultProfession: {
+    fontSize: 15,
+    color: COLORS.secondaryLabel,
+    marginTop: 2,
+  },
+  resultLocation: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+    marginTop: 2,
+  },
+  relationshipBadge: {
+    backgroundColor: `${COLORS.gold}20`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
+  relationshipText: {
+    fontSize: 12,
+    color: COLORS.gold,
+    fontWeight: "500",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.separator,
+    backgroundColor: COLORS.secondaryBackground,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: COLORS.label,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  filterLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.label,
+    marginBottom: 12,
+  },
+  filterHint: {
+    fontSize: 14,
+    color: COLORS.tertiaryLabel,
+  },
+  applyButton: {
+    backgroundColor: COLORS.primary,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  applyButtonText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "600",
+  },
+});

@@ -1,11 +1,12 @@
 /**
  * AI Query Interpreter Service
- * Uses Gemini to understand natural language search queries
+ * Uses OpenAI-compatible API (or Gemini as fallback) to understand natural language search queries
  * and convert them to structured search intents
  */
 
 import { z } from "zod/v4";
-import { interpretSearchQuery, isGeminiConfigured } from "./gemini-client.server";
+import { interpretSearchQuery as openaiInterpretQuery, isOpenAIConfigured } from "./openai-client.server";
+import { interpretSearchQuery as geminiInterpretQuery, isGeminiConfigured } from "./gemini-client.server";
 
 // Search intent types
 export const SearchIntentSchema = z.object({
@@ -79,27 +80,40 @@ const QUERY_INTERPRETATION_PROMPT = `אתה מנתח שאילתות חיפוש �
 החזר תוצאה מובנית בלבד.`;
 
 /**
- * Interpret a search query using Claude AI
+ * Interpret a search query using AI
+ * Prioritizes OpenAI-compatible API, falls back to Gemini, then basic parsing
  */
 export async function interpretQuery(query: string): Promise<SearchIntent> {
-  // Check if Gemini is configured
-  if (!isGeminiConfigured()) {
-    // Return a basic parsed intent without AI
-    return parseQueryBasic(query);
+  // Try OpenAI-compatible API first
+  if (isOpenAIConfigured()) {
+    try {
+      const intent = await openaiInterpretQuery(
+        query,
+        SearchIntentSchema,
+        QUERY_INTERPRETATION_PROMPT
+      );
+      return intent;
+    } catch (error) {
+      console.error("OpenAI query interpretation failed, trying Gemini:", error);
+    }
   }
 
-  try {
-    const intent = await interpretSearchQuery(
-      query,
-      SearchIntentSchema,
-      QUERY_INTERPRETATION_PROMPT
-    );
-
-    return intent;
-  } catch (error) {
-    console.error("AI query interpretation failed, falling back to basic parsing:", error);
-    return parseQueryBasic(query);
+  // Fallback to Gemini
+  if (isGeminiConfigured()) {
+    try {
+      const intent = await geminiInterpretQuery(
+        query,
+        SearchIntentSchema,
+        QUERY_INTERPRETATION_PROMPT
+      );
+      return intent;
+    } catch (error) {
+      console.error("Gemini query interpretation failed, falling back to basic parsing:", error);
+    }
   }
+
+  // Final fallback to basic parsing
+  return parseQueryBasic(query);
 }
 
 /**

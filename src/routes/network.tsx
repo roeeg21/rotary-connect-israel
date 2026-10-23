@@ -46,12 +46,12 @@ function CategoryCard({
   const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
 
   return (
-    <section className="rounded-xl border border-border bg-card shadow-card">
-      <div className="flex items-center gap-3 border-b border-border p-5">
-        <div className="flex size-10 items-center justify-center rounded-full bg-secondary">
-          <Icon className="size-5 text-muted-foreground" strokeWidth={1.8} />
+    <section className="card-premium overflow-hidden">
+      <div className="flex items-center gap-3.5 border-b border-border p-5">
+        <div className="flex size-11 items-center justify-center rounded-full bg-secondary">
+          <Icon className="size-5 text-muted-foreground" strokeWidth={1.75} />
         </div>
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="text-base font-bold tracking-tight">{title}</h2>
       </div>
       <ul className="divide-y divide-border">
         {items.slice(0, 8).map((item) => (
@@ -59,14 +59,14 @@ function CategoryCard({
             <Link
               to="/search"
               search={{ q: item[lang] }}
-              className="flex items-center justify-between px-5 py-4 text-sm transition-colors hover:bg-secondary/50"
+              className="group flex items-center justify-between px-5 py-4 text-sm transition-all hover:bg-secondary/50"
             >
-              <span className="font-medium">{item[lang]}</span>
+              <span className="font-medium transition-colors group-hover:text-primary">{item[lang]}</span>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  {item.count} {t("people")}
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {item.count}
                 </span>
-                <Arrow className="size-4 text-muted-foreground" />
+                <Arrow className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </div>
             </Link>
           </li>
@@ -74,7 +74,7 @@ function CategoryCard({
       </ul>
       {items.length > 8 && (
         <div className="border-t border-border p-4 text-center">
-          <Link to="/search" className="text-sm font-medium text-primary hover:underline">
+          <Link to="/search" className="text-sm font-semibold text-primary hover:underline">
             {t("viewAll")} ({items.length})
           </Link>
         </div>
@@ -92,27 +92,27 @@ function NetworkPage() {
   const hasMembers = members.length > 0;
 
   return (
-    <div className="container-wide py-8 lg:py-12">
+    <div className="container-wide py-8 lg:py-14">
       {/* Header */}
       <div className="mx-auto max-w-2xl text-center">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("exploreTitle")}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{t("guestOneSearch")}</p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-[1.875rem]">{t("exploreTitle")}</h1>
+        <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{t("guestOneSearch")}</p>
       </div>
 
       {hasMembers ? (
-        <div className="mt-10 grid gap-6 lg:grid-cols-2">
+        <div className="mt-12 grid gap-6 lg:grid-cols-2 lg:gap-8">
           <CategoryCard title={t("industries")} icon={Building2} items={industries} />
           <CategoryCard title={t("expertise")} icon={Lightbulb} items={expertise} />
           <CategoryCard title={t("professions")} icon={Briefcase} items={professions} />
           <CategoryCard title={t("locations")} icon={MapPin} items={locations} />
         </div>
       ) : (
-        <div className="mx-auto mt-10 max-w-md rounded-xl border border-border bg-card p-10 text-center shadow-card">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary">
-            <Users className="size-7 text-muted-foreground" strokeWidth={1.8} />
+        <div className="card-premium mx-auto mt-12 max-w-md p-12 text-center">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-secondary">
+            <Users className="size-8 text-muted-foreground" strokeWidth={1.5} />
           </div>
-          <p className="mt-5 text-lg font-semibold">{t("networkEmpty")}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{t("networkEmptyHint")}</p>
+          <p className="mt-6 text-lg font-bold tracking-tight">{t("networkEmpty")}</p>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{t("networkEmptyHint")}</p>
         </div>
       )}
     </div>

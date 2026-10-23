@@ -1,13 +1,24 @@
-import type { ConversationState, RegistrationStage } from "./conversation";
+import type { ConversationState, RegistrationStage, RotaryPosition } from "./conversation";
 import {
   educationRecordSchema,
   extractedChildSchema,
   extractedProfileSchema,
   extractedSpouseSchema,
+  rotaryPositionSchema,
+  militaryServiceSchema,
 } from "./conversation";
 import { registrationSchema } from "./user-registration";
 
 export const MIN_CHILD_AGE = 28;
+
+// Military framework labels for display
+export const MILITARY_FRAMEWORK_LABELS: Record<string, { he: string; en: string }> = {
+  idf: { he: "צה״ל", en: "IDF" },
+  police: { he: "משטרה", en: "Police" },
+  security: { he: "שירותי ביטחון", en: "Security Services" },
+  national_service: { he: "שירות לאומי", en: "National Service" },
+  none: { he: "לא שירתתי", en: "Did not serve" },
+};
 
 export type InterviewUpdate = { path: string; value: string };
 export type InterviewQuestion = {
@@ -21,6 +32,7 @@ export type InterviewQuestion = {
 const booleanFields = new Set([
   "hasHigherEducation",
   "militaryService",
+  "served",
   "completedDuringMilitaryService",
   "hasSpouse",
   "hasChildren",
@@ -30,6 +42,7 @@ const arrayFields = new Set([
   "skills",
   "expertise",
   "interests",
+  "interestCategories",
   "hobbies",
   "helpWith",
   "languages",
@@ -37,6 +50,7 @@ const arrayFields = new Set([
 const stateFields = new Set([
   "customClub",
   "clubId",
+  "previousClub",
   "joinYear",
   "rotaryJoinDate",
   "hasSpouse",
@@ -44,6 +58,8 @@ const stateFields = new Set([
   "hasEligibleChildren",
 ]);
 const educationFields = new Set(Object.keys(educationRecordSchema.shape));
+const militaryFields = new Set(Object.keys(militaryServiceSchema.shape));
+const rotaryPositionFields = new Set(Object.keys(rotaryPositionSchema.shape));
 
 export function ageFromBirthDate(value: string, today = new Date()): number | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
@@ -122,6 +138,33 @@ export function applyInterviewUpdates(
       const record = { ...person.educationHistory[index], [field]: parsed };
       const validated = educationRecordSchema.safeParse(record);
       if (validated.success) person.educationHistory[index] = validated.data;
+      continue;
+    }
+    // Handle profile.military.* fields
+    if (
+      root === "profile" &&
+      parts.length === 3 &&
+      parts[1] === "military" &&
+      militaryFields.has(field)
+    ) {
+      next.profile.military ??= {};
+      const record = { ...next.profile.military, [field]: parsed };
+      const validated = militaryServiceSchema.safeParse(record);
+      if (validated.success) next.profile.military = validated.data;
+      continue;
+    }
+    // Handle rotaryPositions.INDEX.* fields
+    if (
+      root === "rotaryPositions" &&
+      parts.length === 3 &&
+      rotaryPositionFields.has(field)
+    ) {
+      const index = Number(parts[1]);
+      if (!Number.isInteger(index) || index < 0 || index > 9 || !/^\d+$/.test(parts[1]!)) continue;
+      next.rotaryPositions ??= [];
+      const record = { ...next.rotaryPositions[index], [field]: parsed };
+      const validated = rotaryPositionSchema.safeParse(record);
+      if (validated.success) next.rotaryPositions[index] = validated.data;
       continue;
     }
     if (
@@ -307,7 +350,7 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
     state.clubId || state.customClub,
     "מה שם מועדון הרוטרי שלך?",
     "What is your Rotary club's name?",
-    "community",
+    "rotary",
     true,
   );
   add(
@@ -315,7 +358,7 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
     state.joinYear || state.rotaryJoinDate,
     "מתי הצטרפת לרוטרי? אפשר למסור תאריך או שנה.",
     "When did you join Rotary? A date or year is fine.",
-    "community",
+    "rotary",
     true,
   );
   if (state.joinYear)
@@ -324,8 +367,15 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
       state.rotaryJoinDate,
       "האם זכורים לך גם החודש או התאריך המדויק של ההצטרפות לרוטרי? אפשר להסתפק בשנה ולדלג.",
       "Do you also remember the month or exact date you joined Rotary? You can skip and keep the year only.",
-      "community",
+      "rotary",
     );
+  add(
+    "rotaryPositions",
+    state.rotaryPositions?.length ? state.rotaryPositions : undefined,
+    "האם מילאת תפקידים ברוטרי? (נשיא מועדון, מושל וכו׳)",
+    "Have you held any Rotary positions? (Club President, Governor, etc.)",
+    "rotary",
+  );
   add(
     "hasSpouse",
     state.hasSpouse,
@@ -411,24 +461,51 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
         );
     });
   }
+  // Military service questions - support both legacy and new structure
+  const militaryServed = p.military?.served ?? p.militaryService;
   add(
-    "profile.militaryService",
-    p.militaryService,
-    "האם שירתת בצבא? אפשר לדלג על פרטי שירות.",
-    "Did you serve in the military? Service details are optional.",
-    "personal",
+    "profile.military.framework",
+    p.military?.framework ?? (p.militaryService !== undefined ? (p.militaryService ? "idf" : "none") : undefined),
+    "באיזו מסגרת שירתת? (צה״ל, משטרה, שירות לאומי, או לא שירתתי)",
+    "In which framework did you serve? (IDF, Police, National Service, or did not serve)",
+    "military",
   );
-  if (p.militaryService)
+  if (militaryServed && p.military?.framework !== "none") {
     add(
-      "profile.militaryDischargeRank",
-      p.militaryDischargeRank,
-      "מה הייתה דרגת השחרור שלך?",
-      "What was your rank at military discharge?",
-      "personal",
+      "profile.military.unit",
+      p.military?.unit,
+      "באיזה חיל או יחידה שירתת?",
+      "In which corps or unit did you serve?",
+      "military",
     );
+    add(
+      "profile.military.role",
+      p.military?.role,
+      "מה היה תפקידך בשירות?",
+      "What was your role during service?",
+      "military",
+    );
+    add(
+      "profile.military.dischargeRank",
+      p.military?.dischargeRank ?? p.militaryDischargeRank,
+      "מה הייתה דרגת השחרור שלך?",
+      "What was your rank at discharge?",
+      "military",
+    );
+    add(
+      "profile.military.commandExperience",
+      p.military?.commandExperience,
+      "האם היה לך ניסיון פיקודי? אפשר לדלג.",
+      "Did you have any command experience? You can skip.",
+      "military",
+    );
+  }
+  // Email is required but only ask if not yet provided
+  // Once provided, verification will be triggered automatically
+  const emailVerified = state.emailVerification?.status === "verified";
   add(
     "profile.email",
-    p.email,
+    emailVerified ? p.email : p.email, // If verified, consider it known
     "מה כתובת הדוא״ל שלך ליצירת החשבון?",
     "What email address should we use for your account?",
     "account",
@@ -442,26 +519,48 @@ export function getInterviewQuestions(state: ConversationState): InterviewQuesti
     "What is your phone number? You can skip.",
     "personal",
   );
+  // Interests & Activities
+  add(
+    "profile.interestCategories",
+    p.interestCategories?.length ? p.interestCategories : undefined,
+    "מה תחומי העניין שלך? (עסקים, טכנולוגיה, בריאות, חינוך, אמנות, ספורט, סביבה, קהילה)",
+    "What are your areas of interest? (Business, Technology, Health, Education, Arts, Sports, Environment, Community)",
+    "interests",
+  );
+  add(
+    "profile.hobbies",
+    p.hobbies?.length ? p.hobbies : p.interests,
+    "אילו תחביבים יש לך?",
+    "What hobbies do you have?",
+    "interests",
+  );
+  add(
+    "profile.expertise",
+    p.expertise?.length ? p.expertise : undefined,
+    "באילו תחומים יש לך מומחיות שתוכל/י לשתף?",
+    "In what areas do you have expertise you could share?",
+    "interests",
+  );
+  add(
+    "profile.volunteering",
+    p.volunteering,
+    "האם יש לך ניסיון בהתנדבות?",
+    "Do you have any volunteering experience?",
+    "interests",
+  );
   add(
     "profile.boards",
     p.boards,
     "האם השתתפת בדירקטוריון, בעמותה או בפעילות חברתית? אפשר לציין שלא.",
     "Have you been involved in boards, associations or community activities? You can say none.",
-    "networking",
-  );
-  add(
-    "profile.hobbies",
-    p.hobbies?.length ? p.hobbies : p.interests,
-    "אילו תחביבים או תחומי עניין תרצה/י לציין?",
-    "What hobbies or interests would you like to share?",
-    "networking",
+    "interests",
   );
   add(
     "profile.goals",
     p.goals,
     "באילו נושאים תרצה/י ליצור קשרים או לעזור לחברי רוטרי?",
     "What connections are you looking for, or how can you help other Rotary members?",
-    "networking",
+    "interests",
   );
   return questions;
 }
@@ -511,14 +610,15 @@ export function generateProfileSummary(state: ConversationState): string {
     profession: ["מקצוע", "Profession"],
     jobTitle: ["תפקיד", "Role"],
     workplace: ["מקום עבודה", "Workplace"],
+    employmentStatus: ["סטטוס תעסוקה", "Employment status"],
     education: ["השכלה", "Education"],
-    militaryService: ["שירות צבאי", "Military service"],
-    militaryDischargeRank: ["דרגת שחרור", "Discharge rank"],
     boards: ["פעילות חברתית ודירקטוריונים", "Community activities and boards"],
     hobbies: ["תחביבים", "Hobbies"],
+    interestCategories: ["תחומי עניין", "Interest areas"],
     goals: ["מטרות ברשת", "Networking goals"],
     expertise: ["מומחיות", "Expertise"],
     interests: ["תחומי עניין", "Interests"],
+    volunteering: ["התנדבות", "Volunteering"],
     skills: ["כישורים", "Skills"],
     industry: ["ענף", "Industry"],
     experience: ["ניסיון", "Experience"],
@@ -526,6 +626,29 @@ export function generateProfileSummary(state: ConversationState): string {
     helpWith: ["אפשר לעזור ב", "Can help with"],
     languages: ["שפות", "Languages"],
   };
+  for (const [key, names] of Object.entries(profileLabels))
+    add(label(...names), state.profile[key as keyof typeof state.profile]);
+
+  // Military service (support both legacy and new)
+  const military = state.profile.military;
+  if (military?.framework) {
+    const frameworkLabels: Record<string, [string, string]> = {
+      idf: ["צה״ל", "IDF"],
+      police: ["משטרה", "Police"],
+      security: ["שירותי ביטחון", "Security Services"],
+      national_service: ["שירות לאומי", "National Service"],
+      none: ["לא שירת/ה", "Did not serve"],
+    };
+    add(label("מסגרת שירות", "Service framework"), label(...(frameworkLabels[military.framework] || ["", ""])));
+    if (military.unit) add(label("יחידה", "Unit"), military.unit);
+    if (military.role) add(label("תפקיד בשירות", "Service role"), military.role);
+    if (military.dischargeRank) add(label("דרגת שחרור", "Discharge rank"), military.dischargeRank);
+    if (military.commandExperience) add(label("ניסיון פיקודי", "Command experience"), military.commandExperience);
+  } else {
+    // Legacy fields
+    add(label("שירות צבאי", "Military service"), state.profile.militaryService);
+    add(label("דרגת שחרור", "Discharge rank"), state.profile.militaryDischargeRank);
+  }
   for (const [key, names] of Object.entries(profileLabels))
     add(label(...names), state.profile[key as keyof typeof state.profile]);
   const educationLabels: Record<string, [string, string]> = {
@@ -543,7 +666,27 @@ export function generateProfileSummary(state: ConversationState): string {
       add(label(...names), record[key as keyof typeof record]);
   });
   add(label("מועדון רוטרי", "Rotary club"), state.customClub || state.clubId);
+  if (state.previousClub) add(label("מועדון קודם", "Previous club"), state.previousClub);
   add(label("הצטרפות לרוטרי", "Joined Rotary"), state.rotaryJoinDate || state.joinYear);
+  // Rotary positions
+  state.rotaryPositions?.forEach((pos, index) => {
+    const parts = [];
+    if (pos.title) parts.push(pos.title);
+    if (pos.level) {
+      const levelLabels: Record<string, [string, string]> = {
+        club: ["מועדון", "Club"],
+        district: ["מחוז", "District"],
+        national: ["ארצי", "National"],
+        international: ["בינלאומי", "International"],
+      };
+      parts.push(`(${label(...(levelLabels[pos.level] || ["", ""]))})`);
+    }
+    if (pos.fromYear) parts.push(pos.fromYear);
+    if (pos.toYear) parts.push(`- ${pos.toYear}`);
+    if (parts.length) {
+      add(label(`תפקיד רוטרי ${index + 1}`, `Rotary position ${index + 1}`), parts.join(" "));
+    }
+  });
   add(label("בן או בת זוג", "Has a partner"), state.hasSpouse);
   if (state.hasSpouse && state.spouse) {
     add(
@@ -586,6 +729,11 @@ export function generateProfileSummary(state: ConversationState): string {
 export function toRegistrationInput(state: ConversationState) {
   const missing = getInterviewQuestions(state).filter((question) => question.required);
   if (missing.length) throw new Error("Required registration details are missing");
+
+  // Security check: Ensure email is verified
+  if (state.emailVerification?.status !== "verified") {
+    throw new Error("Email address must be verified before completing registration");
+  }
   const educationText = (
     person: ConversationState["profile"] | NonNullable<ConversationState["spouse"]>,
   ) =>

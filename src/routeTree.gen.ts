@@ -18,6 +18,9 @@ import { Route as RegisterFormRouteImport } from './routes/register-form'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
+import { Route as ApiAuthSendOtpRouteImport } from './routes/api/auth/send-otp'
+import { Route as ApiAuthVerifyOtpRouteImport } from './routes/api/auth/verify-otp'
+import { Route as ApiAuthVerifyPasswordRouteImport } from './routes/api/auth/verify-password'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +67,21 @@ const ProfileIdRoute = ProfileIdRouteImport.update({
   path: '/profile/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSendOtpRoute = ApiAuthSendOtpRouteImport.update({
+  id: '/api/auth/send-otp',
+  path: '/api/auth/send-otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthVerifyOtpRoute = ApiAuthVerifyOtpRouteImport.update({
+  id: '/api/auth/verify-otp',
+  path: '/api/auth/verify-otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthVerifyPasswordRoute = ApiAuthVerifyPasswordRouteImport.update({
+  id: '/api/auth/verify-password',
+  path: '/api/auth/verify-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +93,9 @@ export interface FileRoutesByFullPath {
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
+  '/api/auth/send-otp': typeof ApiAuthSendOtpRoute
+  '/api/auth/verify-otp': typeof ApiAuthVerifyOtpRoute
+  '/api/auth/verify-password': typeof ApiAuthVerifyPasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +107,9 @@ export interface FileRoutesByTo {
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
+  '/api/auth/send-otp': typeof ApiAuthSendOtpRoute
+  '/api/auth/verify-otp': typeof ApiAuthVerifyOtpRoute
+  '/api/auth/verify-password': typeof ApiAuthVerifyPasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +122,9 @@ export interface FileRoutesById {
   '/saved': typeof SavedRoute
   '/search': typeof SearchRoute
   '/profile/$id': typeof ProfileIdRoute
+  '/api/auth/send-otp': typeof ApiAuthSendOtpRoute
+  '/api/auth/verify-otp': typeof ApiAuthVerifyOtpRoute
+  '/api/auth/verify-password': typeof ApiAuthVerifyPasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +138,9 @@ export interface FileRouteTypes {
     | '/saved'
     | '/search'
     | '/profile/$id'
+    | '/api/auth/send-otp'
+    | '/api/auth/verify-otp'
+    | '/api/auth/verify-password'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +152,9 @@ export interface FileRouteTypes {
     | '/saved'
     | '/search'
     | '/profile/$id'
+    | '/api/auth/send-otp'
+    | '/api/auth/verify-otp'
+    | '/api/auth/verify-password'
   id:
     | '__root__'
     | '/'
@@ -133,6 +166,9 @@ export interface FileRouteTypes {
     | '/saved'
     | '/search'
     | '/profile/$id'
+    | '/api/auth/send-otp'
+    | '/api/auth/verify-otp'
+    | '/api/auth/verify-password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +181,9 @@ export interface RootRouteChildren {
   SavedRoute: typeof SavedRoute
   SearchRoute: typeof SearchRoute
   ProfileIdRoute: typeof ProfileIdRoute
+  ApiAuthSendOtpRoute: typeof ApiAuthSendOtpRoute
+  ApiAuthVerifyOtpRoute: typeof ApiAuthVerifyOtpRoute
+  ApiAuthVerifyPasswordRoute: typeof ApiAuthVerifyPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +251,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/send-otp': {
+      id: '/api/auth/send-otp'
+      path: '/api/auth/send-otp'
+      fullPath: '/api/auth/send-otp'
+      preLoaderRoute: typeof ApiAuthSendOtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/verify-otp': {
+      id: '/api/auth/verify-otp'
+      path: '/api/auth/verify-otp'
+      fullPath: '/api/auth/verify-otp'
+      preLoaderRoute: typeof ApiAuthVerifyOtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/verify-password': {
+      id: '/api/auth/verify-password'
+      path: '/api/auth/verify-password'
+      fullPath: '/api/auth/verify-password'
+      preLoaderRoute: typeof ApiAuthVerifyPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,6 +285,9 @@ const rootRouteChildren: RootRouteChildren = {
   SavedRoute: SavedRoute,
   SearchRoute: SearchRoute,
   ProfileIdRoute: ProfileIdRoute,
+  ApiAuthSendOtpRoute: ApiAuthSendOtpRoute,
+  ApiAuthVerifyOtpRoute: ApiAuthVerifyOtpRoute,
+  ApiAuthVerifyPasswordRoute: ApiAuthVerifyPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

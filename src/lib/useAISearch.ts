@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { aiSearch, type AISearchResponse } from "./search.functions";
+import { aiSearch, type AISearchResponse, type NotFoundInfo } from "./search.functions";
 import { smartSearch, type SearchResult } from "./smart-search";
 
 type RelationshipFilter = "all" | "member" | "spouse" | "child" | "family";
@@ -23,6 +23,7 @@ interface AISearchResult {
   error: Error | null;
   intent?: AISearchResponse["intent"];
   suggestedCorrections?: Array<{ original: string; suggested: string }>;
+  notFound?: NotFoundInfo;
   isAIPowered: boolean;
 }
 
@@ -105,6 +106,7 @@ export function useAISearch({
     error: error as Error | null,
     intent: data?.intent,
     suggestedCorrections: data?.suggestedCorrections,
+    notFound: data?.notFound,
     isAIPowered: data?.isAIPowered || false,
   };
 }

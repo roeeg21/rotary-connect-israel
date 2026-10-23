@@ -55,12 +55,12 @@ function SidebarCard({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5 shadow-card", className)}>
-      <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className={cn("rounded-2xl border border-border/50 bg-card p-6 shadow-lg", className)}>
+      <h3 className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80">
         {icon}
         {title}
       </h3>
-      <div className="mt-4">{children}</div>
+      <div className="mt-5">{children}</div>
     </div>
   );
 }
@@ -78,25 +78,25 @@ function Home() {
 
   return (
     <div className="container-wide py-8 lg:py-12">
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr_320px] lg:gap-8">
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr_300px] lg:gap-10">
         {/* Left Sidebar - Desktop Only */}
         <aside className="hidden space-y-5 lg:block">
           {/* Profile Card */}
           {account ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-              <div className="h-16 bg-gradient-to-r from-primary/10 to-primary/5" />
-              <div className="-mt-8 px-5 pb-5">
-                <div className="flex size-16 items-center justify-center rounded-full border-4 border-card bg-secondary text-xl font-semibold">
+            <div className="card-premium overflow-hidden">
+              <div className="h-20 bg-gradient-to-br from-primary/12 via-primary/8 to-gold/6" />
+              <div className="-mt-10 px-5 pb-5">
+                <div className="flex size-20 items-center justify-center rounded-full border-4 border-card bg-secondary text-xl font-semibold shadow-sm">
                   {account.firstName.charAt(0)}
                   {account.lastName.charAt(0)}
                 </div>
-                <h3 className="mt-3 font-semibold">
+                <h3 className="mt-3 text-base font-semibold tracking-tight">
                   {account.firstName} {account.lastName}
                 </h3>
                 <p className="text-sm text-muted-foreground">{account.club}</p>
                 <Link
                   to="/me"
-                  className="mt-4 flex w-full items-center justify-center rounded-lg border border-border py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                  className="btn-press mt-4 flex w-full items-center justify-center rounded-lg border border-border py-2.5 text-sm font-medium text-foreground transition-all hover:bg-secondary hover:border-border-strong"
                 >
                   {t("myProfile")}
                 </Link>
@@ -107,10 +107,10 @@ function Home() {
               title={lang === "he" ? "הצטרפו לרשת" : "Join the Network"}
               icon={<RotaryWheel className="size-4 text-gold" />}
             >
-              <p className="text-sm text-muted-foreground">{t("guestOneSearch")}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t("guestOneSearch")}</p>
               <Link
                 to="/register"
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="btn-press mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-[var(--primary-hover)] hover:shadow-raised"
               >
                 {t("createAccount")}
                 <Arrow className="size-4" aria-hidden />
@@ -120,14 +120,14 @@ function Home() {
 
           {/* Quick Links */}
           <SidebarCard title={t("exploreTitle")} icon={<Users className="size-3.5" />}>
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               {CATEGORIES.map((cat) => (
                 <Link
                   key={cat.key}
                   to="/network"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-secondary"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:bg-secondary active:scale-[0.98]"
                 >
-                  <cat.icon className="size-4 text-muted-foreground" strokeWidth={1.8} aria-hidden />
+                  <cat.icon className="size-[18px] text-muted-foreground" strokeWidth={1.75} aria-hidden />
                   <span>{t(cat.key)}</span>
                 </Link>
               ))}
@@ -137,7 +137,7 @@ function Home() {
           {/* Saved Members - if any */}
           {savedMembers.length > 0 && (
             <SidebarCard title={t("saved")} icon={<Bookmark className="size-3.5" />}>
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {savedMembers.map(
                   (m) =>
                     m && (
@@ -145,13 +145,13 @@ function Home() {
                         <Link
                           to="/profile/$id"
                           params={{ id: m.id }}
-                          className="flex items-center gap-3 text-sm hover:text-primary"
+                          className="group flex items-center gap-3 rounded-lg p-2 -m-2 text-sm transition-colors hover:bg-secondary/50"
                         >
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold transition-transform group-hover:scale-105">
                             {m.name[lang].charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{m.name[lang]}</p>
+                            <p className="truncate font-semibold tracking-tight transition-colors group-hover:text-primary">{m.name[lang]}</p>
                             <p className="truncate text-xs text-muted-foreground">
                               {m.company}
                             </p>
@@ -163,9 +163,10 @@ function Home() {
               </ul>
               <Link
                 to="/saved"
-                className="mt-4 block text-center text-sm font-medium text-primary hover:underline"
+                className="mt-5 flex items-center justify-center gap-1 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
               >
-                {t("savedTitle")} →
+                {t("savedTitle")}
+                <Arrow className="size-4" aria-hidden />
               </Link>
             </SidebarCard>
           )}
@@ -174,47 +175,51 @@ function Home() {
         {/* Main Content */}
         <main className="min-w-0">
           {/* Hero Section */}
-          <section className="rounded-xl border border-border bg-card p-6 shadow-card sm:p-8">
-            <p className="flex items-center gap-2 text-sm font-semibold text-gold-foreground">
-              <RotaryWheel className="size-5 text-gold" />
-              {t("tagline")}
-            </p>
-            <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-              {t("homeQuestion")}
-            </h1>
+          <section className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-white via-white to-primary/[0.03] p-8 shadow-xl sm:p-10">
+            {/* Decorative gradient orb */}
+            <div className="pointer-events-none absolute -top-24 -end-24 size-48 rounded-full bg-gradient-to-br from-primary/20 to-gold/20 blur-3xl" />
 
-            <div className="mt-6">
-              <SearchField />
-            </div>
+            <div className="relative">
+              <p className="flex items-center gap-2.5 text-sm font-bold">
+                <RotaryWheel className="size-6 text-gold drop-shadow-sm" />
+                <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">{t("tagline")}</span>
+              </p>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">{t("try")}</span>
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s.en}
-                  type="button"
-                  onClick={() => void navigate({ to: "/search", search: { q: s[lang] } })}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium transition-all hover:border-border-strong hover:bg-secondary"
-                >
-                  {s[lang]}
-                </button>
-              ))}
+              <div className="mt-6">
+                <SearchField />
+              </div>
+
+              <div className="mt-7 flex flex-wrap items-center gap-2.5">
+                <span className="text-xs font-semibold text-muted-foreground">{t("try")}</span>
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s.en}
+                    type="button"
+                    onClick={() => void navigate({ to: "/search", search: { q: s[lang] } })}
+                    className="rounded-full border border-border/60 bg-white px-4 py-2 text-[13px] font-semibold shadow-sm transition-all duration-200 hover:border-primary/30 hover:bg-primary/5 hover:shadow-md active:scale-95"
+                  >
+                    {s[lang]}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 
           {/* CTA Banner for Guests - Mobile & Tablet */}
           {isGuest && (
-            <section className="mt-6 overflow-hidden rounded-xl bg-primary p-5 text-primary-foreground shadow-raised lg:hidden">
-              <div className="flex items-start gap-4">
-                <RotaryWheel className="mt-0.5 size-10 shrink-0 text-gold" />
+            <section className="mt-8 overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-blue-700 p-7 text-white shadow-2xl lg:hidden">
+              <div className="flex items-start gap-5">
+                <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm shadow-inner">
+                  <RotaryWheel className="size-8 text-gold drop-shadow" />
+                </div>
                 <div className="flex-1">
-                  <p className="text-base font-bold">
+                  <p className="text-xl font-extrabold tracking-tight">
                     {lang === "he" ? "הצטרפו לרשת של רוטרי ישראל" : "Join the Rotary Israel network"}
                   </p>
-                  <p className="mt-1 text-sm opacity-90">{t("guestOneSearch")}</p>
+                  <p className="mt-2 text-sm font-medium text-white/80 leading-relaxed">{t("guestOneSearch")}</p>
                   <Link
                     to="/register"
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-4 py-2.5 text-sm font-bold text-gold-foreground transition-opacity hover:opacity-90"
+                    className="mt-6 inline-flex items-center justify-center gap-2.5 rounded-xl bg-gold px-6 py-3.5 text-sm font-extrabold text-black shadow-lg transition-all duration-200 hover:bg-yellow-400 hover:shadow-xl active:scale-95"
                   >
                     {t("createAccount")}
                     <Arrow className="size-4" aria-hidden />
@@ -226,16 +231,16 @@ function Home() {
 
           {/* Recent Searches */}
           {recentSearches.length > 0 && (
-            <section className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
+            <section className="card-premium mt-6 p-5">
               <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <Clock className="size-3.5" aria-hidden />
                   {t("recentSearches")}
                 </h2>
                 <button
                   type="button"
                   onClick={clearRecentSearches}
-                  className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  className="btn-press size-8 flex items-center justify-center rounded-full text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
                 >
                   <X className="size-4" aria-hidden />
                   <span className="sr-only">{t("clearFilters")}</span>
@@ -247,10 +252,10 @@ function Home() {
                     <Link
                       to="/search"
                       search={{ q }}
-                      className="flex items-center justify-between py-3 text-sm transition-colors hover:text-primary"
+                      className="flex items-center justify-between py-3.5 text-sm font-medium transition-all hover:text-primary"
                     >
                       {q}
-                      <Arrow className="size-4 text-muted-foreground" aria-hidden />
+                      <Arrow className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" aria-hidden />
                     </Link>
                   </li>
                 ))}
@@ -260,8 +265,8 @@ function Home() {
 
           {/* Recently Viewed */}
           {viewed.length > 0 && (
-            <section className="mt-6">
-              <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <section className="mt-8">
+              <h2 className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {t("recentlyViewed")}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -271,8 +276,8 @@ function Home() {
           )}
 
           {/* New to Network */}
-          <section className="mt-6">
-            <h2 className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <section className="mt-8">
+            <h2 className="mb-5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <Sparkles className="size-3.5" aria-hidden />
               {t("newToNetwork")}
             </h2>
@@ -283,12 +288,12 @@ function Home() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-border bg-card p-6 text-center shadow-card">
-                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-secondary">
-                  <Users className="size-6 text-muted-foreground" />
+              <div className="card-premium p-8 text-center">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary">
+                  <Users className="size-7 text-muted-foreground" strokeWidth={1.5} />
                 </div>
-                <p className="mt-4 font-medium">{t("networkEmpty")}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{t("networkEmptyHint")}</p>
+                <p className="mt-5 text-base font-semibold">{t("networkEmpty")}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{t("networkEmptyHint")}</p>
               </div>
             )}
           </section>
@@ -307,19 +312,19 @@ function Home() {
                   <Link
                     to="/profile/$id"
                     params={{ id: m.id }}
-                    className="group flex items-start gap-3"
+                    className="group flex items-start gap-3 rounded-lg p-2 -m-2 transition-colors hover:bg-secondary/50"
                   >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-medium">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold transition-transform group-hover:scale-105">
                       {m.name[lang].charAt(0)}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium group-hover:text-primary">
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <p className="truncate text-sm font-semibold tracking-tight transition-colors group-hover:text-primary">
                         {m.name[lang]}
                       </p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {m.position[lang]}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-primary/80">
+                      <p className="mt-0.5 truncate text-xs font-medium text-primary/70">
                         {m.clubName[lang]}
                       </p>
                     </div>
@@ -329,12 +334,12 @@ function Home() {
             </ul>
             <Link
               to="/network"
-              className="mt-5 block text-center text-sm font-medium text-primary hover:underline"
+              className="mt-6 flex items-center justify-center gap-1 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
             >
-              {t("navNetwork")} →
+              {t("navNetwork")}
+              <Arrow className="size-4" aria-hidden />
             </Link>
           </SidebarCard>
-
         </aside>
       </div>
     </div>

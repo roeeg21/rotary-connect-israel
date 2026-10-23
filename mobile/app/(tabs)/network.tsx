@@ -3,48 +3,38 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
+  StyleSheet,
+  ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Building2, MapPin, Briefcase, Users } from "lucide-react-native";
+import { useQuery } from "@tanstack/react-query";
+import { Building2, MapPin, Briefcase, Lightbulb } from "lucide-react-native";
 
 import { useAppStore } from "@/lib/store/app";
 import { isRTL } from "@/lib/i18n";
+import { api } from "@/lib/api/client";
+import type { BrowseCategory } from "@/lib/types";
 
-// Rotary brand colors
+// iOS-style colors
 const COLORS = {
-  primary: "#003366",
-  background: "#FAFAF8",
-  text: "#1A1A1A",
-  muted: "#737373",
-  border: "#E5E5E3",
-  card: "#FFFFFF",
+  primary: "#007AFF",
+  secondary: "#5856D6",
+  background: "#F2F2F7",
+  secondaryBackground: "#FFFFFF",
+  label: "#000000",
+  secondaryLabel: "#3C3C43",
+  tertiaryLabel: "#8E8E93",
+  separator: "rgba(60, 60, 67, 0.12)",
+  fill: "rgba(120, 120, 128, 0.12)",
 };
 
-// Sample categories - would come from API in production
-const CATEGORIES = {
-  industries: [
-    { he: "הייטק", en: "High-Tech", count: 45 },
-    { he: "משפטים", en: "Legal", count: 32 },
-    { he: "רפואה", en: "Healthcare", count: 28 },
-    { he: "פיננסים", en: "Finance", count: 24 },
-    { he: "נדל״ן", en: "Real Estate", count: 18 },
-  ],
-  locations: [
-    { he: "תל אביב", en: "Tel Aviv", count: 67 },
-    { he: "ירושלים", en: "Jerusalem", count: 34 },
-    { he: "חיפה", en: "Haifa", count: 22 },
-    { he: "הרצליה", en: "Herzliya", count: 18 },
-    { he: "רמת גן", en: "Ramat Gan", count: 15 },
-  ],
-  professions: [
-    { he: "עורך דין", en: "Lawyer", count: 28 },
-    { he: "רופא", en: "Doctor", count: 22 },
-    { he: "יזם", en: "Entrepreneur", count: 35 },
-    { he: "מהנדס", en: "Engineer", count: 40 },
-    { he: "אדריכל", en: "Architect", count: 12 },
-  ],
+const CATEGORY_ICONS = {
+  industries: Building2,
+  locations: MapPin,
+  professions: Briefcase,
+  expertise: Lightbulb,
 };
 
 export default function NetworkScreen() {
@@ -53,7 +43,13 @@ export default function NetworkScreen() {
   const language = useAppStore((state) => state.language);
   const rtl = isRTL();
 
-  const handleCategoryPress = (type: string, value: string) => {
+  // Fetch categories from API
+  const { data: categories, isLoading, error } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api.getCategories(),
+  });
+
+  const handleCategoryPress = (value: string) => {
     router.push(`/search/${encodeURIComponent(value)}`);
   };
 
@@ -61,72 +57,36 @@ export default function NetworkScreen() {
     title,
     icon: Icon,
     items,
-    type,
+    titleKey,
   }: {
     title: string;
     icon: React.ComponentType<{ size: number; color: string }>;
-    items: Array<{ he: string; en: string; count: number }>;
-    type: string;
+    items: BrowseCategory[];
+    titleKey: string;
   }) => (
-    <View style={{ marginBottom: 32 }}>
-      <View
-        style={{
-          flexDirection: rtl ? "row-reverse" : "row",
-          alignItems: "center",
-          marginBottom: 16,
-          paddingHorizontal: 20,
-        }}
-      >
+    <View style={styles.categorySection}>
+      <View style={[styles.categoryHeader, { flexDirection: rtl ? "row-reverse" : "row" }]}>
         <Icon size={20} color={COLORS.primary} />
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "600",
-            color: COLORS.text,
-            marginStart: 8,
-          }}
-        >
-          {title}
-        </Text>
+        <Text style={styles.categoryTitle}>{t(titleKey)}</Text>
       </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+        contentContainerStyle={styles.categoryItems}
       >
-        {items.map((item, index) => (
+        {items.map((item) => (
           <TouchableOpacity
-            key={index}
+            key={item.id}
             onPress={() =>
-              handleCategoryPress(type, language === "he" ? item.he : item.en)
+              handleCategoryPress(language === "he" ? item.name.he : item.name.en)
             }
-            style={{
-              backgroundColor: COLORS.card,
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              minWidth: 140,
-            }}
+            style={styles.categoryCard}
+            activeOpacity={0.7}
           >
-            <Text
-              style={{
-                fontSize: 15,
-                fontWeight: "600",
-                color: COLORS.text,
-                marginBottom: 4,
-                textAlign: rtl ? "right" : "left",
-              }}
-            >
-              {language === "he" ? item.he : item.en}
+            <Text style={[styles.categoryName, { textAlign: rtl ? "right" : "left" }]}>
+              {language === "he" ? item.name.he : item.name.en}
             </Text>
-            <Text
-              style={{
-                fontSize: 13,
-                color: COLORS.muted,
-                textAlign: rtl ? "right" : "left",
-              }}
-            >
+            <Text style={[styles.categoryCount, { textAlign: rtl ? "right" : "left" }]}>
               {item.count} {t("people")}
             </Text>
           </TouchableOpacity>
@@ -135,47 +95,157 @@ export default function NetworkScreen() {
     </View>
   );
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !categories) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>{t("loadError")}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {/* Header */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24 }}>
-          <Text
-            style={{
-              fontSize: 28,
-              fontWeight: "700",
-              color: COLORS.text,
-              textAlign: rtl ? "right" : "left",
-            }}
-          >
+        <View style={styles.header}>
+          <Text style={[styles.title, { textAlign: rtl ? "right" : "left" }]}>
             {t("exploreTitle")}
+          </Text>
+          <Text style={[styles.subtitle, { textAlign: rtl ? "right" : "left" }]}>
+            {t("exploreSubtitle")}
           </Text>
         </View>
 
         {/* Industries */}
-        <CategorySection
-          title={t("industries")}
-          icon={Building2}
-          items={CATEGORIES.industries}
-          type="industry"
-        />
+        {categories.industries.length > 0 && (
+          <CategorySection
+            title="industries"
+            titleKey="industries"
+            icon={CATEGORY_ICONS.industries}
+            items={categories.industries}
+          />
+        )}
 
         {/* Locations */}
-        <CategorySection
-          title={t("locations")}
-          icon={MapPin}
-          items={CATEGORIES.locations}
-          type="location"
-        />
+        {categories.locations.length > 0 && (
+          <CategorySection
+            title="locations"
+            titleKey="locations"
+            icon={CATEGORY_ICONS.locations}
+            items={categories.locations}
+          />
+        )}
 
         {/* Professions */}
-        <CategorySection
-          title={t("professions")}
-          icon={Briefcase}
-          items={CATEGORIES.professions}
-          type="profession"
-        />
+        {categories.professions.length > 0 && (
+          <CategorySection
+            title="professions"
+            titleKey="professions"
+            icon={CATEGORY_ICONS.professions}
+            items={categories.professions}
+          />
+        )}
+
+        {/* Expertise */}
+        {categories.expertise.length > 0 && (
+          <CategorySection
+            title="expertise"
+            titleKey="expertise"
+            icon={CATEGORY_ICONS.expertise}
+            items={categories.expertise}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorText: {
+    fontSize: 17,
+    color: COLORS.tertiaryLabel,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 120,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: "700",
+    color: COLORS.label,
+    letterSpacing: 0.37,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: COLORS.tertiaryLabel,
+    marginTop: 8,
+  },
+  categorySection: {
+    marginBottom: 32,
+  },
+  categoryHeader: {
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.label,
+    letterSpacing: 0.35,
+  },
+  categoryItems: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  categoryCard: {
+    backgroundColor: COLORS.secondaryBackground,
+    borderRadius: 12,
+    padding: 16,
+    minWidth: 140,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  categoryName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.label,
+    marginBottom: 4,
+  },
+  categoryCount: {
+    fontSize: 13,
+    color: COLORS.tertiaryLabel,
+  },
+});

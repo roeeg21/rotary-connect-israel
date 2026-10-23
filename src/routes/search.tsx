@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bot, SlidersHorizontal, Sparkles, UserSearch, Users } from "lucide-react";
+import { Bot, Briefcase, MapPin, SlidersHorizontal, Sparkles, UserSearch, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { SearchResultCard } from "@/components/SearchResultCard";
@@ -59,13 +59,13 @@ function FilterGroup({
 }) {
   return (
     <div>
-      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </label>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || undefined)}
-        className="mt-2 h-11 w-full rounded-xl border bg-card px-3 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+        className="mt-2.5 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm font-medium outline-none transition-all hover:border-border-strong focus:border-primary focus:ring-4 focus:ring-primary/10"
       >
         <option value="">—</option>
         {options.map((o) => (
@@ -102,7 +102,7 @@ function RelationshipTabs({
           type="button"
           onClick={() => onChange(tab.value)}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all",
+            "btn-press inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-all",
             value === tab.value
               ? "bg-primary text-primary-foreground shadow-sm"
               : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
@@ -136,6 +136,7 @@ function SearchPage() {
     isLoading: isSearching,
     intent: searchIntent,
     suggestedCorrections: aiCorrections,
+    notFound: aiNotFound,
     isAIPowered,
   } = useAISearch({
     query: q,
@@ -256,12 +257,12 @@ function SearchPage() {
     <div className="container-wide py-8 lg:py-12">
       {/* Search Bar */}
       <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-none">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-card sm:p-5">
+        <div className="card-elevated p-5 sm:p-6">
           <SearchField defaultValue={q} size="md" />
 
           {/* Spelling suggestion */}
           {spellingSuggestion && (
-            <div className="mt-3 flex items-center gap-2 text-sm">
+            <div className="mt-4 flex items-center gap-2.5 text-sm">
               <Sparkles className="size-4 text-gold" />
               <span className="text-muted-foreground">{t("searchSuggestion")}:</span>
               <button
@@ -269,7 +270,7 @@ function SearchPage() {
                 onClick={() =>
                   void navigate({ to: "/search", search: { q: spellingSuggestion } })
                 }
-                className="font-medium text-primary hover:underline"
+                className="font-semibold text-primary hover:underline"
               >
                 {spellingSuggestion}
               </button>
@@ -278,19 +279,19 @@ function SearchPage() {
         </div>
 
         {/* Mobile relationship tabs */}
-        <div className="mt-4 lg:hidden">
+        <div className="mt-5 lg:hidden">
           <RelationshipTabs value={relationshipFilter} onChange={setRelationshipFilter} />
         </div>
       </div>
 
-      <div className="mt-8 lg:grid lg:grid-cols-[280px_1fr] lg:gap-8">
+      <div className="mt-8 lg:grid lg:grid-cols-[280px_1fr] lg:gap-10">
         {/* Filters Sidebar - Desktop */}
         <aside className="hidden lg:block">
-          <div className="sticky top-20 rounded-xl border border-border bg-card p-5 shadow-card">
+          <div className="card-premium sticky top-20 p-5">
             {filters}
 
             {/* Stats */}
-            <div className="mt-6 border-t border-border pt-4">
+            <div className="mt-6 border-t border-border pt-5">
               <p className="text-xs text-muted-foreground">
                 {stats.totalMembers} {t("membersOnly").toLowerCase()} · {stats.totalFamilyMembers}{" "}
                 {t("familyMembers").toLowerCase()}
@@ -304,19 +305,19 @@ function SearchPage() {
           <div className="mb-6 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{blocked ? "—" : results.length}</span>{" "}
+                <span className="font-bold text-foreground">{blocked ? "—" : results.length}</span>{" "}
                 {t("results")}
-                {q && <span className="ms-1 font-medium text-foreground">· {q}</span>}
+                {q && <span className="ms-1.5 font-medium text-foreground/80">· {q}</span>}
               </p>
               {isAIPowered && q && !isSearching && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                   <Bot className="size-3" />
                   AI
                 </span>
               )}
               {isSearching && (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <span className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   {lang === "he" ? "מחפש..." : "Searching..."}
                 </span>
               )}
@@ -328,20 +329,20 @@ function SearchPage() {
                 <button
                   type="button"
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all lg:hidden",
+                    "btn-press inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold transition-all lg:hidden",
                     activeFiltersCount > 0 && "border-primary text-primary"
                   )}
                 >
-                  <SlidersHorizontal className="size-4" strokeWidth={1.8} aria-hidden />
+                  <SlidersHorizontal className="size-4" strokeWidth={1.75} aria-hidden />
                   {t("filters")}
                   {activeFiltersCount > 0 && (
-                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                       {activeFiltersCount}
                     </span>
                   )}
                 </button>
               </SheetTrigger>
-              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-3xl">
                 <SheetHeader>
                   <SheetTitle>{t("filters")}</SheetTitle>
                 </SheetHeader>
@@ -359,14 +360,68 @@ function SearchPage() {
             </div>
           )}
 
-          {/* Empty State */}
-          {!blocked && results.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-12 text-center shadow-card">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary">
-                <UserSearch className="size-7 text-muted-foreground" strokeWidth={1.8} aria-hidden />
+          {/* Empty State - AI Powered */}
+          {!blocked && results.length === 0 && !isSearching && (
+            <div className="card-premium overflow-hidden">
+              {/* AI Bar Header */}
+              <div className="flex items-center gap-3 border-b border-border bg-gradient-to-r from-primary/5 to-transparent px-6 py-4">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Bot className="size-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-primary">
+                    {lang === "he" ? "חיפוש חכם" : "Smart Search"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {lang === "he" ? "לא נמצאו תוצאות" : "No results found"}
+                  </p>
+                </div>
               </div>
-              <p className="mt-5 text-lg font-semibold">{t("noResults")}</p>
-              <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{t("noResultsHint")}</p>
+
+              {/* Not Found Message */}
+              <div className="p-6 text-center">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary">
+                  <UserSearch className="size-7 text-muted-foreground" strokeWidth={1.5} aria-hidden />
+                </div>
+
+                {aiNotFound ? (
+                  <>
+                    <p className="mt-5 text-base font-bold tracking-tight">
+                      {aiNotFound.message[lang]}
+                    </p>
+                    <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground leading-relaxed">
+                      {lang === "he"
+                        ? "נסו לחפש במילים אחרות או בחרו מההצעות הבאות:"
+                        : "Try different keywords or choose from these suggestions:"}
+                    </p>
+
+                    {/* Alternative Suggestions */}
+                    {aiNotFound.alternatives.length > 0 && (
+                      <div className="mt-6 flex flex-wrap justify-center gap-2">
+                        {aiNotFound.alternatives.map((alt, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => void navigate({ to: "/search", search: { q: alt.query } })}
+                            className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:border-primary/30 hover:bg-primary/5 hover:shadow-md active:scale-95"
+                          >
+                            {alt.type === "profession" && <Briefcase className="size-3.5 text-muted-foreground" />}
+                            {alt.type === "location" && <MapPin className="size-3.5 text-muted-foreground" />}
+                            {alt.label[lang]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-5 text-base font-bold tracking-tight">{t("noResults")}</p>
+                    <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground leading-relaxed">
+                      {t("noResultsHint")}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

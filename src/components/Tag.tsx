@@ -12,10 +12,10 @@ export function Tag({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium leading-none transition-colors",
+        "inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-semibold leading-none tracking-tight transition-all",
         tone === "default" && "bg-secondary text-secondary-foreground",
-        tone === "gold" && "bg-gold-soft text-gold-foreground",
-        tone === "outline" && "border border-border text-muted-foreground hover:bg-secondary",
+        tone === "gold" && "bg-gold-soft text-gold-foreground border border-gold/20",
+        tone === "outline" && "border border-border text-muted-foreground hover:bg-secondary hover:text-foreground",
         tone === "primary" && "bg-primary-soft text-primary",
         className,
       )}
@@ -31,7 +31,7 @@ export function MetaRow({ items }: { items: (string | undefined)[] }) {
     <p className="text-sm text-muted-foreground">
       {list.map((item, i) => (
         <span key={item + i}>
-          {i > 0 && <span className="mx-1.5 text-border-strong">·</span>}
+          {i > 0 && <span className="mx-2 text-border-strong">·</span>}
           {item}
         </span>
       ))}

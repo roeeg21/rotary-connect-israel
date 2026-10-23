@@ -9,6 +9,10 @@ import type {
   ConversationState,
   SearchResponse,
   ChatResponse,
+  Member,
+  FamilyMember,
+  BrowseCategory,
+  Account,
 } from "../types";
 
 // API base URL - configure for your environment
@@ -139,6 +143,62 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify({ emailOrPhone, code }),
     });
+  }
+
+  /**
+   * Get member by ID
+   */
+  async getMember(id: string): Promise<Member | null> {
+    return this.request<Member | null>(`/api/members/${id}`);
+  }
+
+  /**
+   * Get multiple members by IDs
+   */
+  async getMembers(ids: string[]): Promise<Member[]> {
+    return this.request<Member[]>("/api/members", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    });
+  }
+
+  /**
+   * Get all members (with optional pagination)
+   */
+  async getAllMembers(options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{ members: Member[]; total: number }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set("limit", options.limit.toString());
+    if (options?.offset) params.set("offset", options.offset.toString());
+    return this.request(`/api/members?${params.toString()}`);
+  }
+
+  /**
+   * Get family members for a member
+   */
+  async getFamilyMembers(memberId: string): Promise<FamilyMember[]> {
+    return this.request<FamilyMember[]>(`/api/members/${memberId}/family`);
+  }
+
+  /**
+   * Get browse categories (industries, locations, professions, expertise)
+   */
+  async getCategories(): Promise<{
+    industries: BrowseCategory[];
+    locations: BrowseCategory[];
+    professions: BrowseCategory[];
+    expertise: BrowseCategory[];
+  }> {
+    return this.request("/api/categories");
+  }
+
+  /**
+   * Get new members (recently joined)
+   */
+  async getNewMembers(limit: number = 5): Promise<Member[]> {
+    return this.request<Member[]>(`/api/members/new?limit=${limit}`);
   }
 }
 

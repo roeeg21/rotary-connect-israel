@@ -2,9 +2,13 @@ import { z } from "zod/v4";
 import type { ChatMessage, ChatResponse, ConversationState, QuickReply } from "./conversation";
 import { createMessage, getRegistrationGreeting } from "./conversation";
 import {
-  isGeminiConfigured,
-  sendMessageWithSchema,
+  isOpenAIConfigured,
+  sendMessageWithSchema as openaiSendMessageWithSchema,
   type ConversationMessage,
+} from "./openai-client.server";
+import {
+  isGeminiConfigured,
+  sendMessageWithSchema as geminiSendMessageWithSchema,
 } from "./gemini-client.server";
 import {
   applyInterviewUpdates,
@@ -12,6 +16,45 @@ import {
   getInterviewQuestions,
   skipInterviewQuestions,
 } from "./registration-interview";
+import { sendOTP, verifyOTP, isResendConfigured } from "./otp.server";
+
+/**
+ * Check if any AI service is configured
+ */
+function isAIConfigured(): boolean {
+  return isOpenAIConfigured() || isGeminiConfigured();
+}
+
+/**
+ * Send message with schema using available AI service
+ * Prioritizes OpenAI, falls back to Gemini
+ */
+async function sendMessageWithSchema<T>(
+  messages: ConversationMessage[],
+  schema: z.ZodType<T>,
+  options: { systemPrompt?: string; maxTokens?: number; temperature?: number }
+): Promise<T> {
+  // Try OpenAI first
+  if (isOpenAIConfigured()) {
+    try {
+      return await openaiSendMessageWithSchema(messages, schema, options);
+    } catch (error) {
+      console.error("OpenAI registration failed, trying Gemini:", error);
+    }
+  }
+
+  // Fallback to Gemini
+  if (isGeminiConfigured()) {
+    // Convert message format for Gemini
+    const geminiMessages = messages.map((m) => ({
+      role: m.role === "system" ? "user" as const : m.role,
+      content: m.content,
+    }));
+    return await geminiSendMessageWithSchema(geminiMessages, schema, options);
+  }
+
+  throw new Error("No AI service configured");
+}
 
 // A small patch schema avoids the API's limits on optional fields in large profiles.
 export const interviewTurnSchema = z.object({
@@ -65,16 +108,40 @@ function buildCollectedDataSummary(state: ConversationState): string {
     });
   }
 
-  // Military
-  if (state.profile?.militaryService !== undefined) {
+  // Military (support both legacy and new structure)
+  const military = state.profile?.military;
+  if (military?.framework) {
+    const frameworkLabels: Record<string, string> = {
+      idf: "IDF", police: "Police", security: "Security Services",
+      national_service: "National Service", none: "Did not serve"
+    };
+    lines.push(`• Military Framework: ${frameworkLabels[military.framework] || military.framework}`);
+  } else if (state.profile?.militaryService !== undefined) {
     lines.push(`• Military Service: ${state.profile.militaryService ? "Yes" : "No"}`);
   }
-  if (state.profile?.militaryDischargeRank) lines.push(`• Military Rank: ${state.profile.militaryDischargeRank}`);
+  if (military?.unit) lines.push(`• Military Unit: ${military.unit}`);
+  if (military?.role) lines.push(`• Military Role: ${military.role}`);
+  if (military?.dischargeRank || state.profile?.militaryDischargeRank) {
+    lines.push(`• Military Rank: ${military?.dischargeRank || state.profile?.militaryDischargeRank}`);
+  }
+  if (military?.commandExperience) lines.push(`• Command Experience: ${military.commandExperience}`);
 
   // Rotary
   if (state.customClub) lines.push(`• Rotary Club: ${state.customClub}`);
+  if (state.clubId) lines.push(`• Rotary Club ID: ${state.clubId}`);
+  if (state.previousClub) lines.push(`• Previous Club: ${state.previousClub}`);
   if (state.joinYear) lines.push(`• Joined Rotary: ${state.joinYear}`);
   if (state.rotaryJoinDate) lines.push(`• Rotary Join Date: ${state.rotaryJoinDate}`);
+  if (state.rotaryPositions?.length) {
+    state.rotaryPositions.forEach((pos, i) => {
+      const parts = [];
+      if (pos.title) parts.push(pos.title);
+      if (pos.level) parts.push(`(${pos.level})`);
+      if (pos.fromYear) parts.push(`from ${pos.fromYear}`);
+      if (pos.toYear) parts.push(`to ${pos.toYear}`);
+      if (parts.length) lines.push(`• Rotary Position ${i + 1}: ${parts.join(" ")}`);
+    });
+  }
 
   // Spouse
   if (state.hasSpouse !== undefined) {
@@ -104,12 +171,17 @@ function buildCollectedDataSummary(state: ConversationState): string {
     });
   }
 
-  // Other
-  if (state.profile?.hobbies) lines.push(`• Hobbies: ${state.profile.hobbies}`);
-  if (state.profile?.interests) lines.push(`• Interests: ${state.profile.interests}`);
+  // Interests & Activities
+  if (state.profile?.interestCategories?.length) {
+    lines.push(`• Interest Categories: ${state.profile.interestCategories.join(", ")}`);
+  }
+  if (state.profile?.hobbies) lines.push(`• Hobbies: ${Array.isArray(state.profile.hobbies) ? state.profile.hobbies.join(", ") : state.profile.hobbies}`);
+  if (state.profile?.interests) lines.push(`• Interests: ${Array.isArray(state.profile.interests) ? state.profile.interests.join(", ") : state.profile.interests}`);
+  if (state.profile?.expertise?.length) lines.push(`• Expertise: ${state.profile.expertise.join(", ")}`);
+  if (state.profile?.volunteering) lines.push(`• Volunteering: ${state.profile.volunteering}`);
   if (state.profile?.boards) lines.push(`• Boards: ${state.profile.boards}`);
   if (state.profile?.goals) lines.push(`• Goals: ${state.profile.goals}`);
-  if (state.profile?.helpWith) lines.push(`• Can Help With: ${state.profile.helpWith}`);
+  if (state.profile?.helpWith) lines.push(`• Can Help With: ${Array.isArray(state.profile.helpWith) ? state.profile.helpWith.join(", ") : state.profile.helpWith}`);
 
   // Skipped fields
   if (state.skippedFields?.length) {
@@ -153,11 +225,13 @@ Extract all NEW details from the user's latest message. Then ask only ONE or TWO
 Return response, updates, skippedFields, questionFields in the required schema. Updates are a patch, not a replacement profile. Each update has a whitelisted dot path and a string value. Boolean values use "true" or "false"; age uses a numeric string; arrays use a JSON string array. Leave unmentioned fields out of updates. Apply explicit corrections to the same existing record, never duplicate a degree or child. Use stable zero-based indices from the saved state.
 
 Allowed paths:
-- profile.firstName, lastName, email, phone, city, country, age, dateOfBirth (YYYY-MM-DD only if explicitly supplied), profession, jobTitle, workplace, industry, experience, shortBio, hasHigherEducation, education (a faithful short summary), militaryService, militaryDischargeRank, boards, skills, expertise, interests, hobbies, helpWith, languages, goals. Prefix ALL these with "profile.".
-- profile.educationHistory.INDEX.degree, fieldOfStudy, institution, graduationYear, specialization, postGraduationActivities, completedDuringMilitaryService. Every education record must have its own index. Collect all stated degrees and training, not just the first one. Store explicit 'none' answers for specialization or post-graduation activity as the user's stated answer; unknown or declined answers go in skippedFields instead.
+- profile.firstName, lastName, email, phone, city, country, age, dateOfBirth (YYYY-MM-DD only if explicitly supplied), profession, jobTitle, workplace, industry, experience, employmentStatus (employed/self_employed/retired/seeking/other), retirementYear, shortBio, hasHigherEducation, education (a faithful short summary), boards, skills, expertise, interests, interestCategories (array of: business/technology/health/education/arts/sports/environment/community/finance/legal/real_estate/other), hobbies, volunteering, helpWith, languages, goals. Prefix ALL these with "profile.".
+- profile.educationHistory.INDEX.degree, level (high_school/associate/bachelor/master/doctorate/professional/other), fieldOfStudy, institution, graduationYear, specialization, postGraduationActivities, completedDuringMilitaryService. Every education record must have its own index. Collect all stated degrees and training, not just the first one.
+- profile.military.served, framework (idf/police/security/national_service/none), unit, role, dischargeRank, dischargeYear, commandExperience. The military object is preferred over legacy fields.
 - spouse.firstName, lastName, age, gender, profession, jobTitle, workplace, industry, city, bio, education; spouse.educationHistory.INDEX has the same education fields.
 - children.INDEX.name, age, dateOfBirth, profession, workplace, education, institution, graduationYear, city.
-- customClub (club name), clubId (only an exact known ID already given), joinYear (YYYY), rotaryJoinDate (YYYY-MM-DD or YYYY-MM; never make up a day), hasSpouse, hasChildren, hasEligibleChildren.
+- rotaryPositions.INDEX.level (club/district/national/international), title, fromYear, toYear. Use for Rotary leadership roles.
+- customClub (club name), clubId (only an exact known ID already given), previousClub (former club if changed), joinYear (YYYY), rotaryJoinDate (YYYY-MM-DD or YYYY-MM; never make up a day), hasSpouse, hasChildren, hasEligibleChildren.
 
 Education follow-ups: qualification and field, educational institution, graduation year, specialization, further studies/training/professional activities after graduation, and whether the studies were completed during military service. Ask military discharge rank only if military service is confirmed. If the user never served, do not ask about military studies or rank. If there was no higher education, do not ask for a university or graduation year. All education, military, partner and children details are optional and can be declined. A false boolean is a complete answer, not missing information.
 Family: first establish partner status; ask relevant partner details only when there is a partner. Include ONLY children whose explicitly stated age or date of birth confirms age 28 or older. Never include identifying information about younger children, or children of unknown age, in updates or the reply. If ages are unknown, ask only whether there are eligible children. If all children are under 28, set hasChildren=true and hasEligibleChildren=false and move on. Never infer permission to publish or make family members searchable.
@@ -180,6 +254,21 @@ function reviewReplies(language: "he" | "en"): QuickReply[] {
   ];
 }
 
+// Rate limiting for OTP resend (minimum 60 seconds between sends)
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+
+// Check if user message looks like an OTP code
+function looksLikeOTPCode(message: string): boolean {
+  const cleaned = message.replace(/\s/g, "");
+  return /^\d{4}$/.test(cleaned);
+}
+
+// Extract 4-digit code from message
+function extractOTPCode(message: string): string | null {
+  const match = message.match(/\b(\d{4})\b/);
+  return match ? match[1] : null;
+}
+
 export async function processRegistrationMessage(
   userMessage: string,
   conversationHistory: ChatMessage[],
@@ -187,6 +276,29 @@ export async function processRegistrationMessage(
   sender?: InterviewSender,
 ): Promise<ChatResponse> {
   const command = userMessage.trim().toLowerCase();
+  const he = state.language === "he";
+
+  // =========================================================================
+  // EMAIL VERIFICATION STAGE HANDLING
+  // =========================================================================
+  if (state.currentStage === "email_verification") {
+    return handleEmailVerificationStage(userMessage, state);
+  }
+
+  // Check if we need to trigger email verification after email is collected
+  // This happens when email was just extracted and needs verification
+  if (
+    state.profile?.email &&
+    (!state.emailVerification || state.emailVerification.status === "pending") &&
+    state.currentStage !== "email_verification"
+  ) {
+    // Send OTP and move to verification stage
+    return await triggerEmailVerification(state);
+  }
+
+  // =========================================================================
+  // REVIEW STAGE HANDLING
+  // =========================================================================
   if (state.currentStage === "review" && command === "review") {
     return {
       messages: [
@@ -200,6 +312,23 @@ export async function processRegistrationMessage(
     command === "finish" &&
     !getInterviewQuestions(state).some((question) => question.required)
   ) {
+    // Final check: ensure email is verified
+    if (state.emailVerification?.status !== "verified") {
+      return {
+        messages: [
+          createMessage(
+            "assistant",
+            he
+              ? "נא לאמת את כתובת הדוא״ל לפני סיום ההרשמה."
+              : "Please verify your email address before completing registration.",
+          ),
+        ],
+        state: {},
+        nextStage: "email_verification",
+        shouldAdvanceStage: true,
+      };
+    }
+
     return {
       messages: [
         createMessage(
@@ -220,7 +349,7 @@ export async function processRegistrationMessage(
   if (command === "skip" && state.pendingQuestions.length) {
     updated = skipInterviewQuestions(state, state.pendingQuestions);
   } else {
-    if (!sender && !isGeminiConfigured()) throw new Error("Gemini registration is not configured");
+    if (!sender && !isAIConfigured()) throw new Error("AI registration is not configured (no OpenAI or Gemini API key)");
     const send: InterviewSender =
       sender ??
       ((messages, systemPrompt) =>
@@ -283,3 +412,363 @@ export async function processRegistrationMessage(
 }
 
 export { generateProfileSummary } from "./registration-interview";
+
+// =========================================================================
+// EMAIL VERIFICATION HELPER FUNCTIONS
+// =========================================================================
+
+/**
+ * Trigger email verification by sending OTP
+ */
+async function triggerEmailVerification(state: ConversationState): Promise<ChatResponse> {
+  const he = state.language === "he";
+  const email = state.profile?.email;
+
+  if (!email) {
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? "לא נמצאה כתובת דוא״ל. מה כתובת הדוא״ל שלך?"
+            : "No email address found. What is your email address?",
+        ),
+      ],
+      state: {},
+    };
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? `הכתובת "${email}" אינה תקינה. נא להזין כתובת דוא״ל תקינה.`
+            : `The address "${email}" is not valid. Please enter a valid email address.`,
+        ),
+      ],
+      state: {
+        profile: { ...state.profile, email: undefined },
+      },
+    };
+  }
+
+  // Check if we should rate limit
+  const lastSent = state.emailVerification?.lastSentAt;
+  if (lastSent && Date.now() - lastSent < OTP_RESEND_COOLDOWN_MS) {
+    const waitSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - (Date.now() - lastSent)) / 1000);
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? `נא להמתין ${waitSeconds} שניות לפני בקשת קוד חדש.`
+            : `Please wait ${waitSeconds} seconds before requesting a new code.`,
+        ),
+      ],
+      state: {},
+      nextStage: "email_verification",
+      shouldAdvanceStage: true,
+    };
+  }
+
+  // Send OTP
+  try {
+    const result = await sendOTP(email);
+
+    if (!result.success) {
+      return {
+        messages: [
+          createMessage(
+            "assistant",
+            he
+              ? `לא הצלחנו לשלוח קוד אימות ל-${email}. ${result.error || "נא לנסות שוב."}`
+              : `We couldn't send a verification code to ${email}. ${result.error || "Please try again."}`,
+          ),
+        ],
+        state: {
+          emailVerification: {
+            status: "failed",
+            email,
+          },
+        },
+      };
+    }
+
+    // Success - update state and move to verification stage
+    const quickReplies: QuickReply[] = [
+      {
+        id: "resend",
+        label: he ? "שלח שוב" : "Resend code",
+        value: "resend",
+      },
+      {
+        id: "change_email",
+        label: he ? "שנה דוא״ל" : "Change email",
+        value: "change_email",
+      },
+    ];
+
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? `שלחתי קוד אימות בן 4 ספרות לכתובת ${email}.\n\nנא להזין את הקוד שקיבלת:`
+            : `I've sent a 4-digit verification code to ${email}.\n\nPlease enter the code you received:`,
+          quickReplies,
+        ),
+      ],
+      state: {
+        emailVerification: {
+          status: "sent",
+          sessionKey: result.sessionKey,
+          email,
+          attempts: 0,
+          lastSentAt: Date.now(),
+        },
+      },
+      nextStage: "email_verification",
+      shouldAdvanceStage: true,
+    };
+  } catch (error) {
+    console.error("Failed to send OTP:", error);
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? "אירעה שגיאה בשליחת קוד האימות. נא לנסות שוב."
+            : "An error occurred while sending the verification code. Please try again.",
+        ),
+      ],
+      state: {
+        emailVerification: {
+          status: "failed",
+          email,
+        },
+      },
+    };
+  }
+}
+
+/**
+ * Handle email verification stage interactions
+ */
+async function handleEmailVerificationStage(
+  userMessage: string,
+  state: ConversationState,
+): Promise<ChatResponse> {
+  const he = state.language === "he";
+  const command = userMessage.trim().toLowerCase();
+
+  // Handle "resend" command
+  if (command === "resend" || command === "שלח שוב") {
+    // Reset email verification status and trigger resend
+    const resetState: ConversationState = {
+      ...state,
+      emailVerification: {
+        ...state.emailVerification,
+        status: "pending",
+      },
+    };
+    return await triggerEmailVerification(resetState);
+  }
+
+  // Handle "change_email" command
+  if (command === "change_email" || command === "שנה דוא״ל" || command.includes("change") || command.includes("שנה")) {
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? "בסדר, מה כתובת הדוא״ל החדשה?"
+            : "Okay, what is your new email address?",
+        ),
+      ],
+      state: {
+        profile: { ...state.profile, email: undefined },
+        emailVerification: {
+          status: "pending",
+        },
+      },
+      nextStage: "account",
+      shouldAdvanceStage: true,
+    };
+  }
+
+  // Check if message contains a new email (user wants to change)
+  const emailMatch = userMessage.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/);
+  if (emailMatch) {
+    const newEmail = emailMatch[0].toLowerCase();
+    // User provided a new email, update and resend
+    const resetState: ConversationState = {
+      ...state,
+      profile: { ...state.profile, email: newEmail },
+      emailVerification: {
+        status: "pending",
+        email: newEmail,
+      },
+    };
+    return await triggerEmailVerification(resetState);
+  }
+
+  // Check for OTP code in message
+  const otpCode = extractOTPCode(userMessage);
+
+  if (!otpCode) {
+    // Message doesn't look like an OTP code
+    if (looksLikeOTPCode(userMessage.replace(/\s/g, ""))) {
+      // It's digits but not 4, provide guidance
+      return {
+        messages: [
+          createMessage(
+            "assistant",
+            he
+              ? "נא להזין קוד בן 4 ספרות בדיוק."
+              : "Please enter exactly 4 digits.",
+          ),
+        ],
+        state: {},
+      };
+    }
+
+    // Not a code at all, remind user what to do
+    const quickReplies: QuickReply[] = [
+      {
+        id: "resend",
+        label: he ? "שלח שוב" : "Resend code",
+        value: "resend",
+      },
+      {
+        id: "change_email",
+        label: he ? "שנה דוא״ל" : "Change email",
+        value: "change_email",
+      },
+    ];
+
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? `נא להזין את קוד האימות בן 4 הספרות ששלחתי ל-${state.emailVerification?.email || state.profile?.email}.`
+            : `Please enter the 4-digit verification code I sent to ${state.emailVerification?.email || state.profile?.email}.`,
+          quickReplies,
+        ),
+      ],
+      state: {},
+    };
+  }
+
+  // Verify the OTP code
+  const sessionKey = state.emailVerification?.sessionKey;
+
+  if (!sessionKey) {
+    // No session key - need to resend OTP
+    const resetState: ConversationState = {
+      ...state,
+      emailVerification: {
+        ...state.emailVerification,
+        status: "pending",
+      },
+    };
+    return await triggerEmailVerification(resetState);
+  }
+
+  try {
+    const verifyResult = await verifyOTP(sessionKey, otpCode);
+
+    if (!verifyResult.success) {
+      // Verification failed
+      const currentAttempts = (state.emailVerification?.attempts || 0) + 1;
+
+      // Check if max attempts reached (this is also checked in verifyOTP but good to track locally)
+      if (currentAttempts >= 3 || verifyResult.error?.includes("Too many")) {
+        return {
+          messages: [
+            createMessage(
+              "assistant",
+              he
+                ? "נוצלו כל הניסיונות. נא לבקש קוד חדש."
+                : "All attempts used. Please request a new code.",
+              [
+                {
+                  id: "resend",
+                  label: he ? "שלח קוד חדש" : "Send new code",
+                  value: "resend",
+                },
+              ],
+            ),
+          ],
+          state: {
+            emailVerification: {
+              ...state.emailVerification,
+              status: "failed",
+              attempts: currentAttempts,
+            },
+          },
+        };
+      }
+
+      // Wrong code but still has attempts
+      const remainingAttempts = 3 - currentAttempts;
+
+      return {
+        messages: [
+          createMessage(
+            "assistant",
+            he
+              ? `הקוד שגוי. נותרו ${remainingAttempts} ניסיונות.`
+              : `Incorrect code. ${remainingAttempts} attempts remaining.`,
+          ),
+        ],
+        state: {
+          emailVerification: {
+            ...state.emailVerification,
+            attempts: currentAttempts,
+          },
+        },
+      };
+    }
+
+    // =========================================================================
+    // SUCCESS - Email verified!
+    // =========================================================================
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? "✓ הדוא״ל אומת בהצלחה!\n\nבואו נמשיך עם שאר הפרטים."
+            : "✓ Email verified successfully!\n\nLet's continue with the rest of your details.",
+        ),
+      ],
+      state: {
+        emailVerification: {
+          ...state.emailVerification,
+          status: "verified",
+          verifiedAt: Date.now(),
+        },
+      },
+      nextStage: "personal",
+      shouldAdvanceStage: true,
+    };
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          he
+            ? "אירעה שגיאה באימות. נא לנסות שוב."
+            : "An error occurred during verification. Please try again.",
+        ),
+      ],
+      state: {},
+    };
+  }
+}

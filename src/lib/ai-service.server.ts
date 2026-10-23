@@ -1,7 +1,9 @@
 import type { ChatMessage, ChatResponse, ConversationState } from "./conversation";
 import { createMessage } from "./conversation";
+import { isOpenAIConfigured } from "./openai-client.server";
+import { isGeminiConfigured } from "./gemini-client.server";
 
-/** Gemini extracts profile changes and asks adaptive follow-ups in one request. */
+/** AI extracts profile changes and asks adaptive follow-ups in one request. */
 export async function processUserMessage(
   message: string,
   state: ConversationState,

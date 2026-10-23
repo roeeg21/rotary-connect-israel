@@ -27,14 +27,14 @@ export function SearchField({
   }
 
   return (
-    <form onSubmit={onSubmit} role="search" className="relative w-full">
+    <form onSubmit={onSubmit} role="search" className="relative w-full group">
       <Search
         className={cn(
-          "pointer-events-none absolute top-1/2 -translate-y-1/2 transition-colors duration-200 start-4",
-          isFocused ? "text-primary" : "text-muted-foreground",
+          "pointer-events-none absolute top-1/2 -translate-y-1/2 transition-all start-4",
+          isFocused ? "text-primary scale-105" : "text-muted-foreground",
           size === "lg" ? "size-5" : "size-4",
         )}
-        strokeWidth={1.8}
+        strokeWidth={1.75}
         aria-hidden
       />
       <input
@@ -47,9 +47,19 @@ export function SearchField({
         placeholder={t("searchPlaceholder")}
         aria-label={t("searchPlaceholder")}
         className={cn(
-          "w-full rounded-xl border bg-card text-[15px] shadow-card transition-all duration-200 outline-none placeholder:text-muted-foreground",
+          "w-full rounded-xl border border-border bg-card text-[15px] shadow-sm outline-none placeholder:text-muted-foreground/70",
+          "transition-all duration-200 ease-out",
+          "hover:border-border-strong hover:shadow-card",
           "focus:border-primary focus:shadow-raised focus:ring-4 focus:ring-primary/10",
-          size === "lg" ? "h-14 ps-12 pe-4" : "h-11 ps-10 pe-4",
+          size === "lg" ? "h-14 ps-12 pe-5" : "h-12 ps-11 pe-4",
+        )}
+      />
+      {/* Subtle gradient border on focus */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity",
+          "bg-gradient-to-r from-primary/5 via-transparent to-gold/5",
+          isFocused && "opacity-100",
         )}
       />
     </form>
