@@ -178,11 +178,17 @@ export const rotaryPositionSchema = z.object({
 export const extractedProfileSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  email: z.string().email().optional(),
+  // More lenient email validation - accept any string, validate format later
+  email: z.string().optional().transform(val => {
+    if (!val) return val;
+    // Basic cleanup and validation
+    const cleaned = val.trim().toLowerCase();
+    return cleaned.includes("@") ? cleaned : undefined;
+  }),
   phone: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
-  photoUrl: z.string().url().optional(),
+  photoUrl: z.string().optional(),
   shortBio: z.string().optional(),
   profession: z.string().optional(),
   jobTitle: z.string().optional(),
@@ -199,7 +205,10 @@ export const extractedProfileSchema = z.object({
     "environment", "community", "finance", "legal", "real_estate", "other"
   ])).optional(),
   goals: z.string().optional(),
-  age: z.number().int().min(18).max(130).optional(),
+  // Accept both number and string for age, coerce to number
+  age: z.union([z.number(), z.string().transform(s => parseInt(s, 10))])
+    .pipe(z.number().int().min(18).max(130))
+    .optional(),
   dateOfBirth: z.string().optional(),
   hasHigherEducation: z.boolean().optional(),
   education: z.string().optional(),
@@ -219,7 +228,10 @@ export const extractedProfileSchema = z.object({
 export const extractedSpouseSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  age: z.number().int().min(18).max(130).optional(),
+  // Accept both number and string for age, coerce to number
+  age: z.union([z.number(), z.string().transform(s => parseInt(s, 10))])
+    .pipe(z.number().int().min(18).max(130))
+    .optional(),
   gender: z.string().optional(),
   profession: z.string().optional(),
   jobTitle: z.string().optional(),

@@ -278,8 +278,19 @@ export function applyInterviewUpdates(
       field !== "educationHistory" &&
       Object.hasOwn(extractedProfileSchema.shape, field)
     ) {
-      const validated = extractedProfileSchema.safeParse({ ...next.profile, [field]: parsed });
-      if (validated.success) next.profile = validated.data;
+      // Try to validate and apply the update
+      const updated = { ...next.profile, [field]: parsed };
+      const validated = extractedProfileSchema.safeParse(updated);
+      if (validated.success) {
+        next.profile = validated.data;
+      } else {
+        // Log validation failure but still try to apply for string fields
+        console.warn(`Profile field validation failed for ${field}:`, validated.error.message);
+        // For non-critical string fields, apply anyway
+        if (typeof parsed === "string" && !["email", "age"].includes(field)) {
+          (next.profile as Record<string, unknown>)[field] = parsed;
+        }
+      }
     } else if (
       root === "spouse" &&
       parts.length === 2 &&

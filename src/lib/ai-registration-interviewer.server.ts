@@ -222,9 +222,20 @@ CRITICAL: Before asking any question, check the ALREADY COLLECTED DATA section a
 The opening invitation was: ${getRegistrationGreeting(state.language)}
 Extract all NEW details from the user's latest message. Then ask only ONE or TWO questions about information that is NOT already in the collected data above. Keep your reply short and natural. Do not repeat information already supplied or declined. Never invent values, birth dates, dates, institutions, degrees, military service, family status or relationships. An age is enough: never estimate a birth date from it. Dates may remain year-only or year-month when that is all the user remembers.
 
-Return response, updates, skippedFields, questionFields in the required schema. Updates are a patch, not a replacement profile. Each update has a whitelisted dot path and a string value. Boolean values use "true" or "false"; age must be ONLY the numeric value (e.g., "45" not "45 years" or "בן 45"); arrays use a JSON string array. Leave unmentioned fields out of updates. Apply explicit corrections to the same existing record, never duplicate a degree or child. Use stable zero-based indices from the saved state.
+Return response, updates, skippedFields, questionFields in the required schema. Updates are a patch, not a replacement profile. Each update has a whitelisted dot path and a string value. Boolean values use "true" or "false"; arrays use a JSON string array. Leave unmentioned fields out of updates. Apply explicit corrections to the same existing record, never duplicate a degree or child. Use stable zero-based indices from the saved state.
 
-IMPORTANT for age extraction: When the user says their age in any format (e.g., "I'm 45", "בן 45", "45 שנים", "age 45", "45 years old"), extract ONLY the number as a string (e.g., "45").
+CRITICAL - EXTRACT ALL DATA FROM USER MESSAGE:
+You MUST create an update for EVERY piece of information the user provides. Do not skip any data. Common extractions:
+- Name: "My name is David Cohen" → updates: [{path: "profile.firstName", value: "David"}, {path: "profile.lastName", value: "Cohen"}]
+- Age: "I'm 45", "בן 45", "45 years old" → update: {path: "profile.age", value: "45"} (ONLY the number)
+- Birth year: "born 1980", "נולדתי ב-1980" → update: {path: "profile.dateOfBirth", value: "1980"}
+- Email: "my email is test@example.com" → update: {path: "profile.email", value: "test@example.com"}
+- Profession: "I'm a lawyer", "עורך דין" → update: {path: "profile.profession", value: "lawyer"} or {path: "profile.profession", value: "עורך דין"}
+- Club: "Rotary Tel Aviv" → update: {path: "customClub", value: "Rotary Tel Aviv"}
+- Join year: "joined in 2015", "הצטרפתי ב-2015" → update: {path: "joinYear", value: "2015"}
+- Education: "I have a BA in Law" → updates: [{path: "profile.hasHigherEducation", value: "true"}, {path: "profile.educationHistory.0.degree", value: "BA"}, {path: "profile.educationHistory.0.fieldOfStudy", value: "Law"}]
+
+If the user provides multiple pieces of information in one message, create updates for ALL of them. Do not wait for follow-up questions to extract obvious data.
 
 IMPORTANT for year fields (joinYear, graduationYear, fromYear, toYear, dischargeYear, retirementYear): Extract ONLY the 4-digit year as a string (e.g., "2015"). When user says "in 2015", "שנת 2015", "joined 2015", "2015 הצטרפתי", extract just "2015".
 
@@ -365,6 +376,12 @@ export async function processRegistrationMessage(
     turn = interviewTurnSchema.parse(
       await send(buildInterviewHistory(userMessage, conversationHistory), buildSystemPrompt(state)),
     );
+    // Log updates for debugging
+    if (turn.updates.length > 0) {
+      console.log("[Registration] Extracted updates:", JSON.stringify(turn.updates, null, 2));
+    } else {
+      console.warn("[Registration] No updates extracted from user message:", userMessage.slice(0, 100));
+    }
     updated = applyInterviewUpdates(state, turn.updates);
     updated = skipInterviewQuestions(updated, turn.skippedFields);
   }
