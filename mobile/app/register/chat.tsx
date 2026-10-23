@@ -362,6 +362,7 @@ export default function ChatRegistrationScreen() {
                 ]}
               >
                 <Text
+                  selectable
                   style={[
                     styles.messageText,
                     message.role === "user"

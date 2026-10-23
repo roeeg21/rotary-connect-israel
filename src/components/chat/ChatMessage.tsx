@@ -51,7 +51,7 @@ export function ChatMessage({ message, isRTL }: ChatMessageProps) {
         {/* Message content with proper text direction */}
         <div
           className={cn(
-            "whitespace-pre-wrap",
+            "whitespace-pre-wrap select-text",
             isRTL ? "text-right" : "text-left"
           )}
         >
