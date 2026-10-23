@@ -61,10 +61,42 @@ const educationFields = new Set(Object.keys(educationRecordSchema.shape));
 const militaryFields = new Set(Object.keys(militaryServiceSchema.shape));
 const rotaryPositionFields = new Set(Object.keys(rotaryPositionSchema.shape));
 
+/**
+ * Calculate age from birth date string.
+ * Accepts: YYYY-MM-DD, YYYY-MM, or YYYY formats.
+ * For year-only, assumes birthday has passed (conservative estimate).
+ */
 export function ageFromBirthDate(value: string, today = new Date()): number | undefined {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-  const birth = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== value) return undefined;
+  // Normalize the date string - extract year, month, day
+  let birthYear: number;
+  let birthMonth: number = 1; // Default to January
+  let birthDay: number = 1;   // Default to 1st
+
+  // Full date: YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const birth = new Date(`${value}T00:00:00Z`);
+    if (Number.isNaN(birth.getTime()) || birth.toISOString().slice(0, 10) !== value) return undefined;
+    birthYear = birth.getUTCFullYear();
+    birthMonth = birth.getUTCMonth() + 1;
+    birthDay = birth.getUTCDate();
+  }
+  // Year-month: YYYY-MM
+  else if (/^\d{4}-\d{2}$/.test(value)) {
+    const [y, m] = value.split("-").map(Number);
+    if (m < 1 || m > 12) return undefined;
+    birthYear = y;
+    birthMonth = m;
+  }
+  // Year only: YYYY
+  else if (/^\d{4}$/.test(value)) {
+    birthYear = Number(value);
+  }
+  // Invalid format
+  else {
+    return undefined;
+  }
+
+  // Get current date in Israel timezone
   const parts = new Intl.DateTimeFormat("en", {
     timeZone: "Asia/Jerusalem",
     year: "numeric",
@@ -72,16 +104,39 @@ export function ageFromBirthDate(value: string, today = new Date()): number | un
     day: "2-digit",
   }).formatToParts(today);
   const part = (type: string) => Number(parts.find((item) => item.type === type)?.value);
-  const year = part("year"),
-    month = part("month"),
-    day = part("day");
-  let age = year - birth.getUTCFullYear();
-  if (
-    month < birth.getUTCMonth() + 1 ||
-    (month === birth.getUTCMonth() + 1 && day < birth.getUTCDate())
-  )
+  const currentYear = part("year");
+  const currentMonth = part("month");
+  const currentDay = part("day");
+
+  let age = currentYear - birthYear;
+
+  // Adjust if birthday hasn't occurred yet this year
+  if (currentMonth < birthMonth || (currentMonth === birthMonth && currentDay < birthDay)) {
     age--;
+  }
+
   return age >= 0 && age <= 130 ? age : undefined;
+}
+
+/**
+ * Normalize a birth date/year string to a consistent format.
+ * Returns YYYY-MM-DD if full date, YYYY-MM if month given, YYYY if year only.
+ */
+export function normalizeBirthDate(value: string): string | undefined {
+  const trimmed = value.trim();
+
+  // Already in correct format
+  if (/^\d{4}(-\d{2}(-\d{2})?)?$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Extract 4-digit year from text like "born in 1980", "1980", "שנת 1980"
+  const yearMatch = trimmed.match(/\b(19\d{2}|20[0-2]\d)\b/);
+  if (yearMatch) {
+    return yearMatch[1];
+  }
+
+  return undefined;
 }
 
 export function eligibleChildren(state: ConversationState, today = new Date()) {
@@ -119,6 +174,11 @@ export function applyInterviewUpdates(
       } catch {
         continue;
       }
+    } else if (field === "dateOfBirth") {
+      // Normalize birth date/year: accepts YYYY-MM-DD, YYYY-MM, YYYY, or text with year
+      const normalized = normalizeBirthDate(value);
+      if (!normalized) continue;
+      parsed = normalized;
     }
     if (parts.length === 1 && stateFields.has(field)) {
       if (
