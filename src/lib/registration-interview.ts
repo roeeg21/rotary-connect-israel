@@ -107,8 +107,12 @@ export function applyInterviewUpdates(
       if (value !== "true" && value !== "false") continue;
       parsed = value === "true";
     } else if (field === "age") {
-      if (!/^\d{1,3}$/.test(value)) continue;
-      parsed = Number(value);
+      // Extract age from various formats: "45", "45 years", "בן 45", "age 45", "I'm 45", etc.
+      const ageMatch = value.match(/\b(\d{1,3})\b/);
+      if (!ageMatch) continue;
+      const age = Number(ageMatch[1]);
+      if (age < 1 || age > 130) continue;
+      parsed = age;
     } else if (arrayFields.has(field)) {
       try {
         parsed = JSON.parse(value);
