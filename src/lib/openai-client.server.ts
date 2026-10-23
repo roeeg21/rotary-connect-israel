@@ -210,6 +210,7 @@ CRITICAL RULES:
     });
 
     const responseText = response.choices[0]?.message?.content || "{}";
+    console.log("[OpenAI] Raw response:", responseText.slice(0, 500));
 
     // Parse and validate with Zod
     let parsed: unknown;
@@ -219,6 +220,8 @@ CRITICAL RULES:
       console.error("Failed to parse OpenAI response as JSON:", responseText);
       throw new Error(`Invalid JSON from OpenAI: ${jsonError}`);
     }
+
+    console.log("[OpenAI] Parsed response - updates:", JSON.stringify((parsed as Record<string, unknown>).updates || [], null, 2));
 
     try {
       return schema.parse(parsed);

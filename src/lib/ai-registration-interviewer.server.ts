@@ -225,17 +225,31 @@ Extract all NEW details from the user's latest message. Then ask only ONE or TWO
 Return response, updates, skippedFields, questionFields in the required schema. Updates are a patch, not a replacement profile. Each update has a whitelisted dot path and a string value. Boolean values use "true" or "false"; arrays use a JSON string array. Leave unmentioned fields out of updates. Apply explicit corrections to the same existing record, never duplicate a degree or child. Use stable zero-based indices from the saved state.
 
 CRITICAL - EXTRACT ALL DATA FROM USER MESSAGE:
-You MUST create an update for EVERY piece of information the user provides. Do not skip any data. Common extractions:
-- Name: "My name is David Cohen" → updates: [{path: "profile.firstName", value: "David"}, {path: "profile.lastName", value: "Cohen"}]
-- Age: "I'm 45", "בן 45", "45 years old" → update: {path: "profile.age", value: "45"} (ONLY the number)
-- Birth year: "born 1980", "נולדתי ב-1980" → update: {path: "profile.dateOfBirth", value: "1980"}
-- Email: "my email is test@example.com" → update: {path: "profile.email", value: "test@example.com"}
-- Profession: "I'm a lawyer", "עורך דין" → update: {path: "profile.profession", value: "lawyer"} or {path: "profile.profession", value: "עורך דין"}
-- Club: "Rotary Tel Aviv" → update: {path: "customClub", value: "Rotary Tel Aviv"}
-- Join year: "joined in 2015", "הצטרפתי ב-2015" → update: {path: "joinYear", value: "2015"}
-- Education: "I have a BA in Law" → updates: [{path: "profile.hasHigherEducation", value: "true"}, {path: "profile.educationHistory.0.degree", value: "BA"}, {path: "profile.educationHistory.0.fieldOfStudy", value: "Law"}]
+You MUST create an update for EVERY piece of information the user provides. Do not skip any data.
 
-If the user provides multiple pieces of information in one message, create updates for ALL of them. Do not wait for follow-up questions to extract obvious data.
+EXAMPLE: If user says "שמי דוד כהן, בן 45, עורך דין" (My name is David Cohen, 45 years old, lawyer), you MUST return:
+{
+  "response": "נעים להכיר דוד! מה כתובת האימייל שלך?",
+  "updates": [
+    {"path": "profile.firstName", "value": "דוד"},
+    {"path": "profile.lastName", "value": "כהן"},
+    {"path": "profile.age", "value": "45"},
+    {"path": "profile.profession", "value": "עורך דין"}
+  ],
+  "skippedFields": [],
+  "questionFields": ["profile.email"]
+}
+
+Common extractions:
+- Name: "שמי דוד כהן" → updates: [{path: "profile.firstName", value: "דוד"}, {path: "profile.lastName", value: "כהן"}]
+- Age: "בן 45", "45 שנים" → update: {path: "profile.age", value: "45"} (ONLY the number)
+- Birth year: "נולדתי ב-1980" → update: {path: "profile.dateOfBirth", value: "1980"}
+- Email: "האימייל שלי test@example.com" → update: {path: "profile.email", value: "test@example.com"}
+- Profession: "עורך דין" → update: {path: "profile.profession", value: "עורך דין"}
+- Club: "רוטרי תל אביב" → update: {path: "customClub", value: "רוטרי תל אביב"}
+- Join year: "הצטרפתי ב-2015" → update: {path: "joinYear", value: "2015"}
+
+NEVER return an empty updates array if the user provided ANY information. Parse Hebrew text carefully.
 
 IMPORTANT for year fields (joinYear, graduationYear, fromYear, toYear, dischargeYear, retirementYear): Extract ONLY the 4-digit year as a string (e.g., "2015"). When user says "in 2015", "שנת 2015", "joined 2015", "2015 הצטרפתי", extract just "2015".
 
