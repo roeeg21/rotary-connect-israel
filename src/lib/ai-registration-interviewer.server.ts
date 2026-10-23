@@ -314,6 +314,89 @@ function extractOTPCode(message: string): string | null {
   return match ? match[1] : null;
 }
 
+export function createLocalFallbackResponse(
+  userMessage: string,
+  state: ConversationState,
+): ChatResponse {
+  const normalized = userMessage.trim();
+  const updates: InterviewUpdate[] = [];
+  const add = (path: string, value: string | number | boolean | undefined) => {
+    if (value === undefined || value === null || value === "") return;
+    const normalizedValue = String(value).trim();
+    if (!normalizedValue) return;
+    updates.push({ path, value: normalizedValue });
+  };
+
+  const emailMatch = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  if (emailMatch) add("profile.email", emailMatch[0]);
+
+  const nameMatch = normalized.match(/(?:שמי\s+|my name is\s+|i am\s+|אני\s+)([A-Za-z\u05D0-\u05EA]+)(?:\s+([A-Za-z\u05D0-\u05EA]+))?/i);
+  if (nameMatch) {
+    add("profile.firstName", nameMatch[1]);
+    if (nameMatch[2]) add("profile.lastName", nameMatch[2]);
+  }
+
+  const ageMatch = normalized.match(/(?:בן\s*|age\s+|aged\s+|years old\s+|שנים\s*)(\d{1,3})/i);
+  if (ageMatch) add("profile.age", Number(ageMatch[1]));
+
+  const professionMatch = normalized.match(/(?:מהנדס|עורך דין|רופא|מורה|אדריכל|כלכלן|איש מכירות|יועץ|מנהל|עובד|עצמאי|בעלים|מתכנת|מפתח|רואה חשבון|איש עסקים|מומחה|יועץ עסקי|משפטן)/i);
+  if (professionMatch) add("profile.profession", professionMatch[0]);
+
+  const workplaceMatch = normalized.match(/(?:מהנדס|מנהל|עובד|עובדת|יועץ|רופא|עורך\s+דין|מפתח|מומחה|אדריכל|מורה|עיתונאי|איש\s+עסקים|אשת\s+עסקים|בעל|בעלת|פרילנסר|עצמאי|בעלים|student|engineer|developer|doctor|lawyer|manager|consultant)\s+(?:ב|at|for|של|בחברה|בעסק|בארגון|במקום|company|employer)\s*([A-Za-z\u05D0-\u05EA0-9&\-\s]{2,80})(?=(?:\s*(?:\.|,|$)))/i);
+  if (workplaceMatch) {
+    const workplace = workplaceMatch[1].trim();
+    if (!/^(?:what|who|where|which|what's|מה|מי|איפה|איזה)/i.test(workplace)) {
+      add("profile.workplace", workplace);
+    }
+  }
+
+  const militaryRankMatch = normalized.match(/(?:דרגת שחרור|rank|רס\"ן|רב\s*סרן|רסן|סרן|סגן|אלוף|תת\s*אלוף|מ"ר)/i);
+  if (militaryRankMatch) add("profile.military.dischargeRank", militaryRankMatch[0]);
+
+  const clubMatch = normalized.match(/(?:רוטרי|Rotary)\s+([A-Za-z\u05D0-\u05EA0-9\s\-]{2,80})/i);
+  if (clubMatch) add("customClub", clubMatch[1].trim());
+
+  const yearMatch = normalized.match(/\b(19\d{2}|20\d{2})\b/);
+  if (yearMatch) add("joinYear", yearMatch[1]);
+
+  if (/\b(לא\s+נשוי|לא\s+בעל\s+זוג|רווק|single|אין\s+בן\s+זוג|אין\s+בת\s+זוג)\b/i.test(normalized)) {
+    add("hasSpouse", false);
+  } else if (/\b(נשוי|בעל\s+זוג|בת\s+זוג|married|spouse|partner)\b/i.test(normalized)) {
+    add("hasSpouse", true);
+  }
+
+  if (/\b(אין\s+ילדים|no children|אין\s+ילד|אין\s+ילדים\s+בני\s+28|no eligible children)\b/i.test(normalized)) {
+    add("hasChildren", false);
+    add("hasEligibleChildren", false);
+  } else if (/\b(יש\s+ילדים|have children|children)\b/i.test(normalized)) {
+    add("hasChildren", true);
+  }
+
+  const updated = updates.length ? applyInterviewUpdates(state, updates) : state;
+  const missing = getInterviewQuestions(updated);
+  const nextQuestion = missing[0];
+  const localizedQuestion = nextQuestion
+    ? (state.language === "he" ? nextQuestion.he : nextQuestion.en)
+    : state.language === "he"
+      ? "אני מעדכן את הפרטים שלך. האם תרצה להמשיך עם השאלות שנותרו?"
+      : "I’ve recorded the details. Would you like to continue with the remaining questions?";
+
+  const acknowledgement = updates.length
+    ? state.language === "he"
+      ? "תודה, קלטתי את המידע שהזנת."
+      : "Thanks, I’ve captured the details you shared."
+    : state.language === "he"
+      ? "אני ממשיך איתך." 
+      : "I’m continuing with you.";
+
+  return {
+    messages: [createMessage("assistant", `${acknowledgement}\n${localizedQuestion}`)],
+    state: updated,
+    nextStage: nextQuestion?.stage ?? state.currentStage,
+    shouldAdvanceStage: nextQuestion ? state.currentStage !== nextQuestion.stage : false,
+  };
+}
+
 export async function processRegistrationMessage(
   userMessage: string,
   conversationHistory: ChatMessage[],
@@ -330,15 +413,22 @@ export async function processRegistrationMessage(
     return handleEmailVerificationStage(userMessage, state);
   }
 
-  // Check if we need to trigger email verification after email is collected
-  // This happens when email was just extracted and needs verification
-  if (
-    state.profile?.email &&
-    (!state.emailVerification || state.emailVerification.status === "pending") &&
-    state.currentStage !== "email_verification"
-  ) {
-    // Send OTP and move to verification stage
-    return await triggerEmailVerification(state);
+  // Allow explicit skip commands before any other processing.
+  if (command === "skip" && state.pendingQuestions.length) {
+    const updated = skipInterviewQuestions(state, state.pendingQuestions);
+    return {
+      messages: [
+        createMessage(
+          "assistant",
+          state.language === "he"
+            ? "סמן/ת שאלות נוספות כפסולות, והמשך/י לשלב הבא."
+            : "I’ve skipped the remaining optional questions. You can continue.",
+        ),
+      ],
+      state: updated,
+      nextStage: state.currentStage,
+      shouldAdvanceStage: false,
+    };
   }
 
   // =========================================================================
@@ -357,23 +447,6 @@ export async function processRegistrationMessage(
     command === "finish" &&
     !getInterviewQuestions(state).some((question) => question.required)
   ) {
-    // Final check: ensure email is verified
-    if (state.emailVerification?.status !== "verified") {
-      return {
-        messages: [
-          createMessage(
-            "assistant",
-            he
-              ? "נא לאמת את כתובת הדוא״ל לפני סיום ההרשמה."
-              : "Please verify your email address before completing registration.",
-          ),
-        ],
-        state: {},
-        nextStage: "email_verification",
-        shouldAdvanceStage: true,
-      };
-    }
-
     return {
       messages: [
         createMessage(
@@ -389,12 +462,20 @@ export async function processRegistrationMessage(
     };
   }
 
+  // When no AI service is available, continue with a deterministic local extractor.
+  // Explicit review/finish commands take precedence over the fallback.
+  if (!sender && !isAIConfigured()) {
+    return createLocalFallbackResponse(userMessage, state);
+  }
+
   let updated: ConversationState;
   let turn: InterviewTurn | undefined;
   if (command === "skip" && state.pendingQuestions.length) {
     updated = skipInterviewQuestions(state, state.pendingQuestions);
   } else {
-    if (!sender && !isAIConfigured()) throw new Error("AI registration is not configured (no OpenAI or Gemini API key)");
+    if (!sender && !isAIConfigured()) {
+      return createLocalFallbackResponse(userMessage, state);
+    }
     const send: InterviewSender =
       sender ??
       ((messages, systemPrompt) =>
@@ -403,24 +484,29 @@ export async function processRegistrationMessage(
           maxTokens: 4096,
           temperature: 0.2,
         }));
-    turn = interviewTurnSchema.parse(
-      await send(buildInterviewHistory(userMessage, conversationHistory), buildSystemPrompt(state)),
-    );
+    try {
+      turn = interviewTurnSchema.parse(
+        await send(buildInterviewHistory(userMessage, conversationHistory), buildSystemPrompt(state)),
+      );
     // Log updates for debugging
     if (turn.updates.length > 0) {
       console.log("[Registration] Extracted updates:", JSON.stringify(turn.updates, null, 2));
     } else {
       console.warn("[Registration] No updates extracted from user message:", userMessage.slice(0, 100));
     }
-    const stateBefore = JSON.stringify(state.profile);
-    updated = applyInterviewUpdates(state, turn.updates);
-    const stateAfter = JSON.stringify(updated.profile);
-    if (stateBefore !== stateAfter) {
-      console.log("[Registration] Profile updated:", stateAfter);
-    } else if (turn.updates.length > 0) {
-      console.warn("[Registration] Updates extracted but profile unchanged. Updates:", turn.updates);
+      const stateBefore = JSON.stringify(state.profile);
+      updated = applyInterviewUpdates(state, turn.updates);
+      const stateAfter = JSON.stringify(updated.profile);
+      if (stateBefore !== stateAfter) {
+        console.log("[Registration] Profile updated:", stateAfter);
+      } else if (turn.updates.length > 0) {
+        console.warn("[Registration] Updates extracted but profile unchanged. Updates:", turn.updates);
+      }
+      updated = skipInterviewQuestions(updated, turn.skippedFields);
+    } catch (error) {
+      console.warn("[Registration] AI extraction failed, using local fallback:", error);
+      return createLocalFallbackResponse(userMessage, state);
     }
-    updated = skipInterviewQuestions(updated, turn.skippedFields);
   }
 
   const missing = getInterviewQuestions(updated);

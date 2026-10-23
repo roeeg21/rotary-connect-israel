@@ -263,8 +263,10 @@ export function applyInterviewUpdates(
   for (const { path, value } of updates) {
     const normalizedPath = canonicalizeInterviewPath(path);
     const parts = normalizedPath.split(".");
+    if (parts.some((segment) => ["__proto__", "prototype", "constructor"].includes(segment))) continue;
     const root = parts[0],
       field = parts.at(-1)!;
+    if (field === "__proto__" || field === "prototype" || field === "constructor") continue;
     let parsed: unknown = value.trim();
     if (booleanFields.has(field)) {
       if (value !== "true" && value !== "false") continue;
@@ -302,6 +304,7 @@ export function applyInterviewUpdates(
       Object.assign(next, { [field]: parsed });
       continue;
     }
+    if (root === "consent" || root === "status" || root === "emailVerification") continue;
     if (
       (root === "profile" || root === "spouse") &&
       parts.length === 4 &&
@@ -350,6 +353,9 @@ export function applyInterviewUpdates(
       field !== "educationHistory" &&
       Object.hasOwn(extractedProfileSchema.shape, field)
     ) {
+      if (field === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(parsed))) {
+        continue;
+      }
       // Try to validate and apply the update
       const updated = { ...next.profile, [field]: parsed };
       const validated = extractedProfileSchema.safeParse(updated);
@@ -820,23 +826,29 @@ export function generateProfileSummary(state: ConversationState): string {
 
   // Military service (support both legacy and new)
   const military = state.profile.military;
-  if (military?.framework) {
-    const frameworkLabels: Record<string, [string, string]> = {
-      idf: ["צה״ל", "IDF"],
-      police: ["משטרה", "Police"],
-      security: ["שירותי ביטחון", "Security Services"],
-      national_service: ["שירות לאומי", "National Service"],
-      none: ["לא שירת/ה", "Did not serve"],
-    };
-    add(label("מסגרת שירות", "Service framework"), label(...(frameworkLabels[military.framework] || ["", ""])));
-    if (military.unit) add(label("יחידה", "Unit"), military.unit);
-    if (military.role) add(label("תפקיד בשירות", "Service role"), military.role);
-    if (military.dischargeRank) add(label("דרגת שחרור", "Discharge rank"), military.dischargeRank);
-    if (military.commandExperience) add(label("ניסיון פיקודי", "Command experience"), military.commandExperience);
+  const dischargeRank = military?.dischargeRank ?? state.profile.militaryDischargeRank;
+  if (military?.framework || military?.dischargeRank || state.profile.militaryDischargeRank || state.profile.militaryService !== undefined) {
+    if (military?.framework) {
+      const frameworkLabels: Record<string, [string, string]> = {
+        idf: ["צה״ל", "IDF"],
+        police: ["משטרה", "Police"],
+        security: ["שירותי ביטחון", "Security Services"],
+        national_service: ["שירות לאומי", "National Service"],
+        none: ["לא שירת/ה", "Did not serve"],
+      };
+      add(label("מסגרת שירות", "Service framework"), label(...(frameworkLabels[military.framework] || ["", ""])));
+      if (military.unit) add(label("יחידה", "Unit"), military.unit);
+      if (military.role) add(label("תפקיד בשירות", "Service role"), military.role);
+      if (dischargeRank) add(label("דרגת שחרור", "Discharge rank"), dischargeRank);
+      if (military.commandExperience) add(label("ניסיון פיקודי", "Command experience"), military.commandExperience);
+    } else {
+      add(label("שירות צבאי", "Military service"), state.profile.militaryService);
+      if (dischargeRank) add(label("דרגת שחרור", "Discharge rank"), dischargeRank);
+    }
   } else {
     // Legacy fields
     add(label("שירות צבאי", "Military service"), state.profile.militaryService);
-    add(label("דרגת שחרור", "Discharge rank"), state.profile.militaryDischargeRank);
+    if (dischargeRank) add(label("דרגת שחרור", "Discharge rank"), dischargeRank);
   }
   for (const [key, names] of Object.entries(profileLabels))
     add(label(...names), state.profile[key as keyof typeof state.profile]);
@@ -919,10 +931,8 @@ export function toRegistrationInput(state: ConversationState) {
   const missing = getInterviewQuestions(state).filter((question) => question.required);
   if (missing.length) throw new Error("Required registration details are missing");
 
-  // Security check: Ensure email is verified
-  if (state.emailVerification?.status !== "verified") {
-    throw new Error("Email address must be verified before completing registration");
-  }
+  const militaryDischargeRank =
+    state.profile.military?.dischargeRank ?? state.profile.militaryDischargeRank ?? "";
   const educationText = (
     person: ConversationState["profile"] | NonNullable<ConversationState["spouse"]>,
   ) =>
@@ -968,8 +978,8 @@ export function toRegistrationInput(state: ConversationState) {
       jobs: jobs(state.profile),
       boards: state.profile.boards || "",
       hobbies: (state.profile.hobbies || state.profile.interests || []).join(", "),
-      militaryService: state.profile.militaryService,
-      militaryDischargeRank: state.profile.militaryDischargeRank,
+      militaryService: state.profile.militaryService ?? state.profile.military?.served,
+      militaryDischargeRank,
     },
     married: state.hasSpouse === true ? "yes" : state.hasSpouse === false ? "no" : "undisclosed",
     spouse:

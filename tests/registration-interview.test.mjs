@@ -340,17 +340,26 @@ test("the Anthropic SDK can compile and parse the interview's structured-output 
   );
 });
 
-test("Claude failures leave collected state intact and give an honest retry/form response", async () => {
-  const previousKey = process.env.ANTHROPIC_API_KEY;
+test("fallback extraction keeps the bot working even when AI is unavailable", async () => {
+  const previousKeys = {
+    anthropic: process.env.ANTHROPIC_API_KEY,
+    openai: process.env.OPENAI_API_KEY,
+    gemini: process.env.GEMINI_API_KEY,
+  };
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
   try {
     const state = coreState();
-    const response = await processUserMessage("Continue", state, []);
-    assert.match(response.messages[0].content, /temporarily unavailable/);
-    assert.equal(response.nextStage, undefined);
-    assert.equal(applyChatResponse(state, response).profile.email, "dana@example.com");
+    const response = await processUserMessage("אני מנחם כהן, בן 45, מהנדס במגטק טכנולוגיות", state, []);
+    assert.doesNotMatch(response.messages[0].content, /הראיון החכם אינו זמין/);
+    assert.equal(applyChatResponse(state, response).profile.firstName, "מנחם");
+    assert.equal(applyChatResponse(state, response).profile.workplace, "מגטק טכנולוגיות");
+    assert.equal(applyChatResponse(state, response).profile.age, 45);
   } finally {
-    if (previousKey !== undefined) process.env.ANTHROPIC_API_KEY = previousKey;
+    if (previousKeys.anthropic !== undefined) process.env.ANTHROPIC_API_KEY = previousKeys.anthropic;
+    if (previousKeys.openai !== undefined) process.env.OPENAI_API_KEY = previousKeys.openai;
+    if (previousKeys.gemini !== undefined) process.env.GEMINI_API_KEY = previousKeys.gemini;
   }
 });
 

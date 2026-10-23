@@ -13,20 +13,11 @@ export async function processUserMessage(
     const { processRegistrationMessage } = await import("./ai-registration-interviewer.server");
     return await processRegistrationMessage(message, conversationHistory ?? [], state);
   } catch (error) {
-    console.error(
-      "Registration interview unavailable:",
+    console.warn(
+      "Registration interview fallback activated:",
       error instanceof Error ? error.message : "Unknown error",
     );
-    return {
-      messages: [
-        createMessage(
-          "assistant",
-          state.language === "he"
-            ? "הראיון החכם אינו זמין כרגע. הפרטים שכבר נאספו נשמרו בשיחה. אפשר לנסות שוב בעוד רגע או להמשיך דרך הקישור לטופס ההרשמה למטה."
-            : "The smart interview is temporarily unavailable. Your conversation details are still saved. Please try again shortly or use the registration form link below.",
-        ),
-      ],
-      state: {},
-    };
+    const { createLocalFallbackResponse } = await import("./ai-registration-interviewer.server");
+    return createLocalFallbackResponse(message, state);
   }
 }
