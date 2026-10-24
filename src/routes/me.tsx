@@ -31,7 +31,7 @@ function MePage() {
           <p className="text-muted-foreground mt-1 max-w-xs text-sm">{t("notSignedInHint")}</p>
           <div className="mt-5 flex gap-2">
             <Link
-              to="/register"
+              to="/register-form"
               className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2.5 text-sm font-semibold"
             >
               {t("createAccount")}
@@ -88,7 +88,7 @@ function MePage() {
 
       <div className="mt-6 flex flex-wrap gap-2">
         <Link
-          to="/register"
+          to="/register-form"
           className="hover:bg-secondary rounded-md border border-border px-4 py-2.5 text-sm font-semibold"
         >
           {t("editProfile")}

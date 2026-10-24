@@ -206,7 +206,7 @@ function LoginPage() {
       });
 
       // Navigate to registration to complete profile
-      void navigate({ to: "/register-chat" });
+      void navigate({ to: "/register-form" });
     } catch {
       setError(he ? "שגיאה באימות הקוד. נסו שוב." : "Failed to verify code. Please try again.");
     } finally {
@@ -539,7 +539,7 @@ function LoginPage() {
                 {/* Google Sign In */}
                 <button
                   type="button"
-                  onClick={() => void navigate({ to: "/register-chat" })}
+                  onClick={() => void navigate({ to: "/register-form" })}
                   className="btn-press flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-card text-sm font-semibold transition-all hover:bg-secondary hover:border-border-strong"
                 >
                   <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
@@ -596,17 +596,17 @@ function LoginPage() {
             </p>
             <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
               <Link
-                to="/register-chat"
+                to="/register-form"
                 className="btn-press inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-[var(--primary-hover)] hover:shadow-raised"
               >
-                {he ? "הרשמה חכמה בשיחה (מומלץ)" : "Smart chat registration (Recommended)"}
+                {he ? "הרשמה בטופס" : "Registration form"}
                 <Arrow className="size-4" />
               </Link>
               <Link
                 to="/register"
                 className="btn-press inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-semibold text-muted-foreground transition-all hover:bg-secondary hover:border-border-strong hover:text-foreground"
               >
-                {he ? "טופס מסורתי" : "Traditional form"}
+                {he ? "הרשמה חכמה בשיחה" : "Smart chat registration"}
               </Link>
             </div>
           </div>

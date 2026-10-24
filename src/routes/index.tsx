@@ -109,7 +109,7 @@ function Home() {
             >
               <p className="text-sm leading-relaxed text-muted-foreground">{t("guestOneSearch")}</p>
               <Link
-                to="/register"
+                to="/register-form"
                 className="btn-press mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-[var(--primary-hover)] hover:shadow-raised"
               >
                 {t("createAccount")}
@@ -218,7 +218,7 @@ function Home() {
                   </p>
                   <p className="mt-2 text-sm font-medium text-white/80 leading-relaxed">{t("guestOneSearch")}</p>
                   <Link
-                    to="/register"
+                    to="/register-form"
                     className="mt-6 inline-flex items-center justify-center gap-2.5 rounded-xl bg-gold px-6 py-3.5 text-sm font-extrabold text-black shadow-lg transition-all duration-200 hover:bg-yellow-400 hover:shadow-xl active:scale-95"
                   >
                     {t("createAccount")}

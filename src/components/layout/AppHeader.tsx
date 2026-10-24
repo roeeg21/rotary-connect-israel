@@ -127,7 +127,7 @@ export function AppHeader() {
                 {t("signIn")}
               </Link>
               <Link
-                to="/register"
+                to="/register-form"
                 className="inline-flex items-center rounded-xl bg-gradient-to-r from-primary to-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:scale-95"
               >
                 {lang === "he" ? "הרשמה" : "Join"}

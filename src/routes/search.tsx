@@ -436,7 +436,7 @@ function SearchPage() {
           </DialogHeader>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row-reverse">
             <Link
-              to="/register"
+              to="/register-form"
               className="inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90"
             >
               {t("registerNow")}
